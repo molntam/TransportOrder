@@ -10,6 +10,15 @@ from .integrations.sap import InputError, identifier, parse_table, quantity
 
 LOCATIONS = json.loads(Path(__file__).with_name("locations.json").read_text(encoding="utf-8"))
 LOCATIONS["toLocations"] = [r for r in LOCATIONS["toLocations"] if r["building"].upper() not in {"BUILDING 05", "BEST II", "EINDHOVEN 1"}]
+for location in LOCATIONS["toLocations"]:
+    if location["building"] == "WH21-MPS":
+        location["building"] = "Building 21"
+        location["sourceCode"] = "WH21-MPSC"
+LOCATIONS["automatic"]["WH21-MPSC"]["building"] = "Building 21"
+for location in LOCATIONS["toLocations"]:
+    if location["shipTo"] == "KEYSIGHT":
+        location["department"] = "Key sight"
+        location["label"] = "Weert 2 — Key sight"
 DEFAULT_ORIGIN = {"building": "Building 05", "department": "Delivery Ops", "shipTo": "B5L - Delivery Ops"}
 
 

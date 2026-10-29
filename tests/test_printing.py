@@ -29,6 +29,19 @@ class DocumentTests(unittest.TestCase):
         self.assertIn("HU1", html)
         self.assertIn("DN2", html)
 
+    def test_single_delivery_title_and_header_qr(self):
+        saved=apply_action(self.state,"save_form",form(intent="finalise"))
+        model=document_model(self.state,"pallet",saved["palletId"],1)
+        self.assertEqual(model["title"],"Transport order")
+        html=render_document(self.state,"pallet",saved["palletId"],1)
+        self.assertLess(html.index("class='qr-placeholder'"),html.index("</header>"))
+        self.assertIn("building-name",html)
+
+    def test_two_delivery_title(self):
+        first=apply_action(self.state,"save_form",form())
+        apply_action(self.state,"save_form",form(hu="HU2",palletId=first["palletId"],intent="finalise"))
+        self.assertEqual(document_model(self.state,"pallet",first["palletId"],1)["title"],"Pallet consolidation")
+
     def test_final_empty_optional_columns_are_omitted(self):
         saved = apply_action(self.state, "save_form", form(intent="finalise"))
         model = document_model(self.state, "pallet", saved["palletId"], 1)

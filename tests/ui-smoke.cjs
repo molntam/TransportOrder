@@ -104,7 +104,7 @@ async function main() {
   assert.match(document.elements.get("print-frame").srcdoc,/Delivery summary/);
   assert.match(document.elements.get("print-frame").srcdoc,/EMERGENCY/);
 
-  for (const page of ["infeed","pallets","history","settings","create"]) {
+  for (const page of ["infeed","open-orders","pallets","history","settings","create"]) {
     execute(`view=${JSON.stringify(page)}; render()`);
     assert.ok(document.elements.get("main").innerHTML.length>500);
     assert.doesNotMatch(document.elements.get("main").innerHTML, /\bundefined\b/);
@@ -139,6 +139,14 @@ async function main() {
   execute('pasteGrid("quantities","Document\\tHandling Unit\\tQuantity\\nD3\\t00003\\t5")');
   assert.equal(execute('imports.quantities.grid.length'),2);
   assert.equal(execute(`parseGridClipboard(${JSON.stringify('"Description"\t"HU"\n"Line 1\nLine 2"\t"H1"')})[1][0]`),"Line 1\nLine 2");
+  execute('view="infeed";imports.quantities.decimalMark="."');
+  await execute('actions.navigate({dataset:{view:"open-orders"}})');
+  assert.equal(execute('state.sources.quantities.rows[0].hu'),"00003");
+  assert.match(execute('renderOpenOrders()'),/DEMO-HU-003/);
+  assert.doesNotMatch(execute('renderOpenOrders()'),/>DEMO-HU-001</);
+  assert.match(execute('palletContents(palletForms(state.pallets[0].id))'),/DEMO-DN-01/);
+  assert.match(execute('renderPresets("Building 21")'),/WH21/);
+  assert.match(execute('renderPresets("Weert 2")'),/Key sight/);
   console.log("UI smoke passed: all five views, imports, HU resolution, quantity sum, two-form consolidation, direct-print requests, themes, editable cell paste, filtered destinations, reopening, conflicts and manual entry.");
   console.log("This is a DOM-shell/API integration check, native submission is mocked; this is not a physical-printer test.");
 }

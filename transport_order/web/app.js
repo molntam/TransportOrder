@@ -143,7 +143,7 @@ async function loadState() {
 
 function updateShell() {
   applyTheme();
-  const items = [["create","form","Create order"],["infeed","database","Data infeed"],["pallets","box","Pallets"],["history","history","History"],["settings","settings","Settings"]];
+  const items = [["create","form","Create order"],["infeed","database","Data infeed"],["open-orders","truck","Open orders"],["pallets","box","Pallets"],["history","history","History"],["settings","settings","Settings"]];
   $("#navigation").innerHTML = items.map(([id,ico,label])=>`<button class="nav-item ${view===id?"active":""}" data-action="navigate" data-view="${id}" title="${label}" ${view===id?'aria-current="page"':''}>${icon(ico)}<span>${label}</span>${id==="pallets"&&state.pallets.some(p=>p.status==="open")?`<b class="nav-count">${state.pallets.filter(p=>p.status==="open").length}</b>`:""}</button>`).join("");
   $("#page-label").textContent = items.find(i=>i[0]===view)?.[2] || "Create order";
   const ready = state.sources.shipto && state.sources.quantities;
@@ -230,7 +230,7 @@ function renderPalletPanel() {
 
 function sourceCard(kind,title,description,headers) {
   const source=state.sources[kind],draft=imports[kind];
-  return `<section class="card"><div class="card-head"><div><h2>${title}</h2><p>${description}</p></div>${icon("database")}</div><div class="card-body"><div class="source-indicator"><span><strong>${source?nfmt(source.count):"0"}</strong> loaded records · ${source?nfmt(source.uniqueHus):"0"} HUs</span><span>${source?formatDate(source.importedAt):"Not imported"}</span></div><div class="banner">${icon("info")}Paste data into any cell. Headers are prefilled; pasting a full table with SAP headers replaces the input cells.</div>${sourceGrid(kind)}<div class="source-options"><div class="inline-actions"><button class="btn small" data-action="clipboard-grid" data-kind="${kind}">${icon("save")}Paste from clipboard</button><button class="btn small" data-action="choose-file" data-kind="${kind}">${icon("upload")}Import file</button></div><input class="file-input" type="file" id="file-${kind}" data-file="${kind}" accept=".xlsx,.csv,.tsv,.txt"><label>Decimal separator<select data-decimal="${kind}"><option value="." ${draft.decimalMark==="."?"selected":""}>Point (1.5)</option><option value="," ${draft.decimalMark===","?"selected":""}>Comma (1,5)</option></select></label></div>${draft.filename?`<div class="banner">${icon("form")}${esc(draft.filename)}<button class="subtle-button" data-action="discard-file" data-kind="${kind}">Remove</button></div>`:""}<button class="btn primary wide" data-action="preview-import" data-kind="${kind}">Preview &amp; validate ${icon("arrow")}</button><div class="source-footer"><span>${source?esc(source.filename):"XLSX, CSV, TSV or clipboard cells"}</span><button class="subtle-button" data-action="clear-source" data-kind="${kind}" ${!source?"disabled":""}>Clear loaded data</button></div></div></section>`;
+  return `<section class="card"><div class="card-head"><div><h2>${title}</h2><p>${description}</p></div>${icon("database")}</div><div class="card-body"><div class="source-indicator"><span><strong>${source?nfmt(source.count):"0"}</strong> loaded records · ${source?nfmt(source.uniqueHus):"0"} HUs</span><span>${source?formatDate(source.importedAt):"Not imported"}</span></div><div class="banner">${icon("info")}Paste data into any cell. Headers are prefilled; pasting a full table with SAP headers replaces the input cells.</div>${sourceGrid(kind)}<div class="source-options"><div class="inline-actions"><button class="btn small" data-action="clipboard-grid" data-kind="${kind}">${icon("save")}Paste from clipboard</button><button class="btn small" data-action="choose-file" data-kind="${kind}">${icon("upload")}Import file</button></div><input class="file-input" type="file" id="file-${kind}" data-file="${kind}" accept=".xlsx,.csv,.tsv,.txt"><label>Decimal separator<select data-decimal="${kind}"><option value="." ${draft.decimalMark==="."?"selected":""}>Point (1.5)</option><option value="," ${draft.decimalMark===","?"selected":""}>Comma (1,5)</option></select></label></div>${draft.filename?`<div class="banner">${icon("form")}${esc(draft.filename)}<button class="subtle-button" data-action="discard-file" data-kind="${kind}">Remove</button></div>`:""}<button class="btn primary wide" data-action="preview-import" data-kind="${kind}">Validate &amp; apply ${icon("arrow")}</button><div class="source-footer"><span>${source?esc(source.filename):"XLSX, CSV, TSV or clipboard cells"}</span><button class="subtle-button" data-action="clear-source" data-kind="${kind}" ${!source?"disabled":""}>Clear loaded data</button></div></div></section>`;
 }
 
 function renderInfeed() {
@@ -243,6 +243,24 @@ function renderInfeed() {
 
 function matches(record) {
   return JSON.stringify(record).toLowerCase().includes(search.toLowerCase());
+}
+
+function sourceDate(value, time=false) {
+  const number=Number(value);
+  if(value!==""&&value!=null&&Number.isFinite(number)) {
+    if(time&&number>=0&&number<1){const seconds=Math.round(number*86400)%86400;return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,"0")).join(":");}
+    if(!time&&number>20000&&number<100000)return new Date(Date.UTC(1899,11,30)+number*86400000).toLocaleDateString("en-GB",{timeZone:"UTC"});
+  }
+  return value||"—";
+}
+function renderOpenOrders() {
+  const assigned = new Set(state.forms.filter(f=>f.palletId&&!f.removedAt).flatMap(f=>f.lines.map(l=>l.hu).filter(Boolean)));
+  const rows=(state.sources.shipto?.rows||[]).filter(r=>!assigned.has(r.hu)&&matches(r));
+  return heading("Shipping workload","Open orders","Imported HUs not yet assigned to a pallet. Refresh the SAP data to update locations.") + `<div class="view-toolbar"><strong>${rows.length} open HUs · ${new Set(rows.map(r=>r.dn)).size} DNs</strong><label class="search-box">${icon("search")}<input id="record-search" aria-label="Search open orders" placeholder="Search DN, HU, bin or ship-to…" value="${esc(search)}"></label></div><section class="card table-wrap"><table class="record-table"><thead><tr><th>DN</th><th>HU</th><th>Storage bin</th><th>Ship-to</th><th>Changed on</th><th>Changed at</th></tr></thead><tbody>${rows.map(r=>`<tr>${[r.dn,r.hu,r.bin,r.shipTo,sourceDate(r.changedOn),sourceDate(r.changedAt,true)].map(v=>`<td>${esc(v)||"—"}</td>`).join("")}</tr>`).join("")||`<tr><td colspan="6"><div class="empty">No open orders. Import SAP data or check your filter.</div></td></tr>`}</tbody></table></section>`;
+}
+
+function palletContents(forms) {
+  return `<h3>Deliveries &amp; handling units</h3><div class="table-wrap"><table class="record-table"><thead><tr><th>DN</th><th>HU</th><th>Qty</th></tr></thead><tbody>${forms.flatMap(f=>f.lines).map(l=>`<tr><td>${esc(l.dn)||"—"}</td><td>${esc(l.hu)||"—"}</td><td>${esc(l.qty)||"—"}</td></tr>`).join("")}</tbody></table></div>`;
 }
 
 function renderPallets() {
@@ -272,7 +290,7 @@ function renderSettings() {
 
 function render() {
   updateShell();
-  $("#main").innerHTML = ({create:renderCreate,infeed:renderInfeed,pallets:renderPallets,history:renderHistory,settings:renderSettings}[view] || renderCreate)();
+  $("#main").innerHTML = ({create:renderCreate,infeed:renderInfeed,pallets:renderPallets,"open-orders":renderOpenOrders,history:renderHistory,settings:renderSettings}[view] || renderCreate)();
   sessionStorage.setItem("transport-order.editor", JSON.stringify({editor,selectedPallet,dirty}));
 }
 
@@ -388,7 +406,7 @@ function detail(kind, id) {
   const pallet = kind==="form"?state.pallets.find(p=>p.id===record.palletId):record;
   const editable = !record.removedAt && (!pallet || pallet.status==="open");
   const versions = [...record.versions].reverse();
-  showDialog(kind==="form"?"Transport order details":"Pallet details",`<div class="dialog-body"><div class="detail-meta"><div><strong>${esc(id)}</strong>${statusPill(record.status,record.removedAt)}<br>Created ${formatDate(record.createdAt)}<br>Updated ${formatDate(record.updatedAt)}</div><div><strong>${esc(record.destination.building || "Destination pending")}</strong>${esc(record.destination.department)}<br>${esc(record.destination.shipTo)}</div></div>${kind==="pallet"?`<h3>Forms on this pallet</h3><div class="detail-forms">${forms.map(f=>`<button class="btn small" data-action="form-detail" data-id="${f.id}">${esc(f.id)} · ${esc(f.status)}</button>`).join("")||"<p>No active forms.</p>"}</div>`:`<div class="table-wrap"><table class="record-table"><thead><tr><th>12NC</th><th>Description</th><th>Qty</th><th>HU</th><th>DN</th></tr></thead><tbody>${record.lines.map(l=>`<tr>${["part","description","qty","hu","dn"].map(k=>`<td>${esc(l[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="mt" style="white-space:pre-wrap">${esc(record.remarks)||"No additional remarks."}</p>`}<h3>Document revisions</h3><div class="detail-forms">${versions.length?versions.map(v=>`<button class="btn small" data-action="version" data-kind="${kind}" data-id="${id}" data-revision="${v.revision}">${icon("print")}Revision ${v.revision} · ${formatDate(v.at||v.updatedAt)}</button>`).join(""):"<p>No completed document yet.</p>"}</div><h3>Activity</h3><ul class="timeline">${events.map(e=>`<li>${esc(e.action)}${e.detail?` — ${esc(e.detail)}`:""}<small>${formatDate(e.at)} · ${esc(e.actor)}</small></li>`).join("")}</ul></div>`,`<button class="btn" data-action="close-dialog">Close</button>${kind==="form"&&editable?`<button class="btn danger" data-action="remove-form" data-id="${id}">Remove form</button><button class="btn primary" data-action="edit-form" data-id="${id}">${icon("edit")}Edit form</button>`:""}${kind==="pallet"&&record.status==="finalised"?`<button class="btn primary" data-action="reopen" data-id="${id}">Reopen pallet</button>`:""}${kind==="pallet"&&record.status==="open"?`<button class="btn primary" data-action="select-pallet" data-id="${id}">Continue this pallet</button>`:""}`,true);
+  showDialog(kind==="form"?"Transport order details":"Pallet details",`<div class="dialog-body"><div class="detail-meta"><div><strong>${esc(id)}</strong>${statusPill(record.status,record.removedAt)}<br>Created ${formatDate(record.createdAt)}<br>Updated ${formatDate(record.updatedAt)}</div><div><strong>${esc(record.destination.building || "Destination pending")}</strong>${esc(record.destination.department)}<br>${esc(record.destination.shipTo)}</div></div>${kind==="pallet"?`${palletContents(forms)}<h3>Forms on this pallet</h3><div class="detail-forms">${forms.map(f=>`<button class="btn small" data-action="form-detail" data-id="${f.id}">${esc(f.id)} · ${esc(f.status)}</button>`).join("")||"<p>No active forms.</p>"}</div>`:`<div class="table-wrap"><table class="record-table"><thead><tr><th>12NC</th><th>Description</th><th>Qty</th><th>HU</th><th>DN</th></tr></thead><tbody>${record.lines.map(l=>`<tr>${["part","description","qty","hu","dn"].map(k=>`<td>${esc(l[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="mt" style="white-space:pre-wrap">${esc(record.remarks)||"No additional remarks."}</p>`}<h3>Document revisions</h3><div class="detail-forms">${versions.length?versions.map(v=>`<button class="btn small" data-action="version" data-kind="${kind}" data-id="${id}" data-revision="${v.revision}">${icon("print")}Revision ${v.revision} · ${formatDate(v.at||v.updatedAt)}</button>`).join(""):"<p>No completed document yet.</p>"}</div><h3>Activity</h3><ul class="timeline">${events.map(e=>`<li>${esc(e.action)}${e.detail?` — ${esc(e.detail)}`:""}<small>${formatDate(e.at)} · ${esc(e.actor)}</small></li>`).join("")}</ul></div>`,`<button class="btn" data-action="close-dialog">Close</button>${kind==="form"&&editable?`<button class="btn danger" data-action="remove-form" data-id="${id}">Remove form</button><button class="btn primary" data-action="edit-form" data-id="${id}">${icon("edit")}Edit form</button>`:""}${kind==="pallet"&&record.status==="finalised"?`<button class="btn primary" data-action="reopen" data-id="${id}">Reopen pallet</button>`:""}${kind==="pallet"&&record.status==="open"?`<button class="btn primary" data-action="select-pallet" data-id="${id}">Continue this pallet</button>`:""}`,true);
 }
 
 function renderPresets(building="all", query="") {
@@ -401,14 +419,18 @@ function sourcePayload(kind) {
   return {kind,text:draft.fileBase64?"":draft.text||gridText(draft.grid),decimalMark:draft.decimalMark,...(draft.fileBase64?{fileBase64:draft.fileBase64}:{}),filename:draft.filename||"Pasted SAP table"};
 }
 
-async function previewImport(kind) {
-  const result = await api("import-preview",sourcePayload(kind));
-  const fields = kind==="shipto"?["hu","dn","shipTo","condition","externalId"]:["hu","document","qty"];
-  showDialog("Validate " + (kind==="shipto"?"Ship-to data":"Quantities"),`<div class="dialog-body"><div class="banner ${result.errors.length?"error":"success"}">${icon(result.errors.length?"alert":"check")}${result.count} records · ${result.uniqueHus} HUs · ${result.errors.length} errors · ${result.warnings.length} warnings</div>${result.errors.length?`<ul class="errors-list">${result.errors.slice(0,100).map(e=>`<li>${e.row?"Row "+e.row:e.hu?"HU "+esc(e.hu):""}: ${esc(e.message)}</li>`).join("")}</ul>`:""}${result.warnings.length?`<details><summary class="field-hint">Review import warnings (${result.warnings.length})</summary><ul class="warnings-list">${result.warnings.slice(0,100).map(w=>`<li>${esc(w)}</li>`).join("")}</ul></details>`:""}<div class="preview-table mt"><table class="record-table"><thead><tr>${fields.map(f=>`<th>${esc({hu:"HU",dn:"DN",shipTo:"Ship-to",condition:"Priority",externalId:"External ID",document:"Document",qty:"Quantity"}[f])}</th>`).join("")}</tr></thead><tbody>${result.rows.slice(0,40).map(r=>`<tr>${fields.map(f=>`<td>${esc(r[f])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="field-hint">Preview shows the first 40 records. Applying replaces the loaded ${kind==="shipto"?"Ship-to":"Quantities"} table; all existing saved forms remain intact.</p>${result.warnings.length&&!result.errors.length?`<label class="check-label mt"><input type="checkbox" id="import-warning-ack">I checked the warnings against the source export.</label>`:""}</div>`,`<button class="btn" data-action="close-dialog">Back</button><button class="btn primary" data-action="apply-import" data-kind="${kind}" ${result.errors.length?"disabled":""}>Apply ${result.count} records</button>`,true);
+async function previewImport(kind, silent=false) {
+  const draft=imports[kind], payload=sourcePayload(kind), fingerprint=JSON.stringify(payload);
+  if(silent && (!draft.fileBase64&&!draft.text&&!draft.grid.slice(1).some(r=>r?.some(v=>String(v).trim())) || draft.validated===fingerprint))return;
+  const result=await api("import-preview",payload);
+  if(result.errors.length)throw new Error(result.errors.map(e=>`${e.row?"Row "+e.row:"HU "+e.hu}: ${e.message}`).join("\n"));
+  await mutate("import",payload);draft.validated=fingerprint;
+  if(result.warnings.length)message("Data validated with warnings",result.warnings.join("\n"));
+  else if(!silent)toast(`${result.count} records validated and loaded.`);
 }
 
 const actions = {
-  async navigate(b) { view=b.dataset.view; filter="all"; search=""; if(view==="settings")await loadPrinters();render(); },
+  async navigate(b) { if(view==="infeed"&&b.dataset.view!==view){for(const kind of ["shipto","quantities"])await previewImport(kind,true);}view=b.dataset.view; filter="all"; search=""; if(view==="settings")await loadPrinters();render(); },
   async refresh() { await loadState(); render(); toast("Saved data refreshed. Your current form is preserved."); },
   async mode(b) { if(editor.mode===b.dataset.mode)return; editor.mode=b.dataset.mode; resolveResult=null; editor.lines.forEach(l=>l.issues=[]); markDirty(); render(); if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async origin() { originExpanded=!originExpanded; render(); },
@@ -428,7 +450,7 @@ const actions = {
   async "choose-destination"(b) { const r=directory.toLocations[Number(b.dataset.index)];editor.destination={building:r.building,department:r.department,shipTo:r.shipTo};editor.destinationOverride=editor.mode==="automatic";if(r.shipTo==="KEYSIGHT"&&!editor.remarks.includes("KEYSIGHT Tech."))editor.remarks=[editor.remarks,"KEYSIGHT Tech."].filter(Boolean).join("\n");markDirty();$("#dialog").close();render();if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async "choose-file"(b) { $("#file-"+b.dataset.kind).click(); },
   async "discard-file"(b) { imports[b.dataset.kind]={...gridDraft(b.dataset.kind),decimalMark:imports[b.dataset.kind].decimalMark};render(); },
-  async "preview-import"(b) { await previewImport(b.dataset.kind); },
+  async "preview-import"(b) { await previewImport(b.dataset.kind);render(); },
   async "apply-import"(b) { if($("#import-warning-ack")&&!$("#import-warning-ack").checked)throw new Error("Review the import warnings and tick the acknowledgement before applying.");const kind=b.dataset.kind;await mutate("import",sourcePayload(kind));imports[kind]={...gridDraft(kind),decimalMark:imports[kind].decimalMark};$("#dialog").close();render();toast("SAP table applied. Saved forms have not changed."); },
   async "clear-source"(b) { if(!await confirmAction("Clear this SAP table?","This removes the loaded source data. Saved forms and pallets are preserved.","Clear table"))return;await mutate("clear_source",{kind:b.dataset.kind});$("#dialog").close();render();toast("Source table cleared."); },
   async filter(b) { filter=b.dataset.filter;render(); },
@@ -489,7 +511,7 @@ document.addEventListener("input",event=>{
     draft.grid[row] ||= [];draft.grid[row][col]=input.value;draft.text="";delete draft.fileBase64;delete draft.filename;
   }
   if(input.id==="preset-search")$("#preset-results").innerHTML=renderPresets(input.dataset.building,input.value);
-  if(input.id==="record-search") { const start=input.selectionStart;search=input.value;const content=view==="pallets"?renderPallets():renderHistory();$("#main").innerHTML=content;$("#record-search").focus();$("#record-search").setSelectionRange(start,start); }
+  if(input.id==="record-search") { const start=input.selectionStart;search=input.value;const content=view==="pallets"?renderPallets():view==="open-orders"?renderOpenOrders():renderHistory();$("#main").innerHTML=content;$("#record-search").focus();$("#record-search").setSelectionRange(start,start); }
 });
 
 document.addEventListener("change",async event=>{

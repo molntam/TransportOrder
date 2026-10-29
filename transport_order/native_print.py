@@ -19,7 +19,8 @@ try {
     $source = [IO.File]::ReadAllText($env:TRANSPORT_ORDER_PRINT_SOURCE)
     Add-Type -TypeDefinition $source -ReferencedAssemblies System.Drawing,System.Web.Extensions
     $inputJson = if ($env:TRANSPORT_ORDER_PRINT_JOB) { [IO.File]::ReadAllText($env:TRANSPORT_ORDER_PRINT_JOB) } else { '' }
-    [TransportOrderPrinter]::Run($inputJson, $env:TRANSPORT_ORDER_PRINT_ACTION)
+    $result = [TransportOrderPrinter]::Run($inputJson, $env:TRANSPORT_ORDER_PRINT_ACTION)
+    [IO.File]::WriteAllText($env:TRANSPORT_ORDER_PRINT_RESULT, $result, (New-Object System.Text.UTF8Encoding($false)))
 } catch {
     [Console]::Error.WriteLine($_.Exception.GetBaseException().Message)
     exit 1
@@ -34,6 +35,8 @@ def run_native(action, payload=None):
     environment = os.environ.copy()
     environment.update({"TRANSPORT_ORDER_PRINT_SOURCE": str(SOURCE), "TRANSPORT_ORDER_PRINT_ACTION": action})
     with tempfile.TemporaryDirectory(prefix="transport-order-print-") as directory:
+        response_path = Path(directory) / "result.json"
+        environment["TRANSPORT_ORDER_PRINT_RESULT"] = str(response_path)
         if payload is not None:
             job = Path(directory) / "job.json"
             job.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
@@ -50,8 +53,8 @@ def run_native(action, payload=None):
             detail = process.stderr.strip()[:1200] or "The Windows print helper could not run."
             raise InputError("Windows printing: " + detail + " Check the print queue before retrying.")
         try:
-            return json.loads(process.stdout.lstrip("\ufeff").strip())
-        except ValueError as exc:
+            return json.loads(response_path.read_text(encoding="utf-8-sig"))
+        except (ValueError, OSError) as exc:
             raise InputError("Windows returned an unexpected printer response. Check the print queue before retrying.") from exc
 
 

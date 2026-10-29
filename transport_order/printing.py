@@ -51,7 +51,7 @@ def document_model(state, kind, record_id, revision):
     hus = {line["hu"] for line in lines if line.get("hu")}
     dns = {line["dn"] for line in lines if line.get("dn")}
     return {"kind": kind, "id": record_id, "revision": revision,
-            "title": "Transport order" if kind == "form" else "Pallet consolidation",
+            "title": "Transport order" if kind == "form" or len(dns) <= 1 else "Pallet consolidation",
             "at": version.get("updatedAt", version.get("at", "")),
             "preparedBy": ", ".join(dict.fromkeys(f.get("preparedBy") or "Local user" for f in forms)),
             "origin": forms[0]["origin"], "destination": version["destination"],
@@ -62,7 +62,7 @@ def document_model(state, kind, record_id, revision):
 
 
 def address(location):
-    return "<strong>" + e(location.get("building")) + "</strong><br>" + e(location.get("department")) + "<br>" + e(location.get("shipTo"))
+    return "<strong class='building-name'>" + e(location.get("building")) + "</strong><br>" + e(location.get("department")) + "<br>" + e(location.get("shipTo"))
 
 
 def html_table(columns, rows):
@@ -80,6 +80,7 @@ h2 { color: #000066; font-size: 12pt; margin-top: 22px; }
 .meta { text-align: right; font-size: 9pt; line-height: 1.6; }
 .addresses { display: flex; gap: 18px; margin: 20px 0; align-items: stretch; }
 .addresses .address { flex: 1; border: 1px solid #aab5c9; padding: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.building-name { font-size: 18pt; font-weight: 800; color: #000066; }
 .label { color: #485976; text-transform: uppercase; font-size: 9pt; letter-spacing: 1px; display: block; }
 table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 10pt; }
 th { background: #edf0fa; color: #000066; text-align: left; }
@@ -99,10 +100,10 @@ footer { color: #485976; font-size: 9pt; border-top: 1px solid #aab5c9; padding-
 
 def render_document(state, kind, record_id, revision, copies=1):
     model = document_model(state, kind, record_id, revision)
-    header = f"<header><div><h1>{e(model['title'])}</h1><span>Delivery Operations · Netherlands</span></div><div class='meta'><b>{e(record_id)}</b><br>Revision {revision}<br>{e(model['at'])}<br>Prepared by {e(model['preparedBy'])}</div></header>"
-    alert = "<div class='obsolete'>SUPERSEDED DOCUMENT — this record was changed, removed or reopened. Check the current revision before use.</div>" if model["obsolete"] else ""
     qr = "<div class='qr-placeholder' aria-label='QR code placeholder'><strong>QR CODE</strong><small>Tracking to be connected</small></div>" if model["qrPlaceholder"] else ""
-    body = f"<div class='addresses'><div class='address'><span class='label'>From</span>{address(model['origin'])}</div><div class='address'><span class='label'>To</span>{address(model['destination'])}</div>{qr}</div><div class='status'>{e(model['status'])}</div>"
+    header = f"<header><div><h1>{e(model['title'])}</h1><span>Delivery Operations · Netherlands</span></div><div class='meta'><b>{e(record_id)}</b><br>Revision {revision}<br>{e(model['at'])}<br>Prepared by {e(model['preparedBy'])}</div>{qr}</header>"
+    alert = "<div class='obsolete'>SUPERSEDED DOCUMENT — this record was changed, removed or reopened. Check the current revision before use.</div>" if model["obsolete"] else ""
+    body = f"<div class='addresses'><div class='address'><span class='label'>From</span>{address(model['origin'])}</div><div class='address'><span class='label'>To</span>{address(model['destination'])}</div></div><div class='status'>{e(model['status'])}</div>"
     if model["summary"]:
         body += "<h2>Delivery summary</h2>" + html_table([{"label":"DN"},{"label":"HUs"},{"label":"Quantity total (source units)"}], model["summary"])
         body += "<h2>Handling units &amp; deliveries</h2>"

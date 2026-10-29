@@ -97,3 +97,12 @@ node tests/ui-smoke.cjs
 Node is only needed for the optional JavaScript syntax check and developer UI checks; it is not needed to run the app. See [the test guide](docs/TESTING.md) for the Windows and printer acceptance checks.
 
 The UI layout takes inspiration from [Cargix TMS](https://dribbble.com/shots/26814297-Cargix-TMS-Logistics-Web-Dashboard). Implementation, icons and styles are original; this is a prototype, not an official ASML product.
+
+## Changes in 0.3.0
+
+- Queue-print helper responses use a separate JSON result file so driver stdout cannot corrupt acknowledgement parsing. Queue submission still requires local verification with the installed print manager.
+- Validate immediately applies SAP data. Leaving Data infeed automatically validates and applies changed inputs, blocking navigation on errors.
+- Open orders lists imported DN/HU, storage bin, ship-to and SAP change date/time, excluding HUs assigned to active pallets (including pallet drafts). Refresh SAP inputs to see current bins; this is not live SAP polling.
+- Pallet details immediately shows DN/HU/quantity rows.
+- QR placeholders are top-right in the header; building names are larger and bold. Single-delivery final documents are titled Transport order.
+- WH21-MPSC is grouped under Building 21; Weert 2 includes Key sight.

@@ -112,14 +112,6 @@ public static class TransportOrderPrinter {
             Table("Handling units & deliveries", model.columns, model.rows);
             if (!String.IsNullOrWhiteSpace(model.remarks)) { TextBlock("Remarks", 12, true); TextBlock(model.remarks, 10.5f, false); }
             if (!String.IsNullOrWhiteSpace(model.contact)) TextBlock(model.contact, 9.5f, false);
-            if (model.qrPlaceholder) {
-                Ensure(108);
-                Box(bounds.Left, y + 8, 90, 90, false, true);
-                Text("QR CODE", bounds.Left + 5, y + 26, 80, 20, 11, true, true, Navy);
-                Text("Tracking to be", bounds.Left + 5, y + 50, 80, 15, 8.5f, false, true, Color.Black);
-                Text("connected", bounds.Left + 5, y + 65, 80, 15, 8.5f, false, true, Color.Black);
-                y += 108;
-            }
             Ensure(62); y += 15;
             TextBlock("Received / transported by: ____________________", 10, false);
             TextBlock("Name + signature: __________________________", 10, false);
@@ -127,10 +119,17 @@ public static class TransportOrderPrinter {
 
         private void NewPage() {
             current = new List<Mark>(); pages.Add(current);
-            Text(model.title, bounds.Left, bounds.Top, bounds.Width * .58f, 34, 20, true, false, Navy);
+            Text(model.title, bounds.Left, bounds.Top, bounds.Width - (model.qrPlaceholder ? 110 : 0), 34, 20, true, false, Navy);
             Text(model.id + " / Rev " + model.revision, bounds.Left, bounds.Top + 36, bounds.Width, 18, 10, true, false, Color.Black);
             Text(model.at, bounds.Left, bounds.Top + 55, bounds.Width, 16, 9, false, false, Color.DimGray);
-            y = bounds.Top + 79;
+            if (model.qrPlaceholder) {
+                float right = bounds.Right - 90;
+                Box(right, bounds.Top, 90, 90, false, true);
+                Text("QR CODE", right + 5, bounds.Top + 15, 80, 22, 11, true, true, Navy);
+                Text("Tracking to be", right + 5, bounds.Top + 42, 80, 17, 8.5f, false, true, Color.Black);
+                Text("connected", right + 5, bounds.Top + 60, 80, 17, 8.5f, false, true, Color.Black);
+            }
+            y = bounds.Top + (model.qrPlaceholder ? 110 : 79);
         }
 
         private void Ensure(float height) { if (y + height > Bottom) NewPage(); }
@@ -179,14 +178,15 @@ public static class TransportOrderPrinter {
             float width = (bounds.Width - 18) / 2;
             PrintLocation[] locations = new PrintLocation[] { model.origin, model.destination };
             List<string>[] lines = new List<string>[2];
-            for (int i = 0; i < 2; i++) lines[i] = Wrap(locations[i].building + "\n" + locations[i].department + "\n" + locations[i].shipTo, width - 18, 10, false);
-            float height = Math.Max(lines[0].Count, lines[1].Count) * 19 + 38;
+            for (int i = 0; i < 2; i++) lines[i] = Wrap(locations[i].department + "\n" + locations[i].shipTo, width - 18, 10, false);
+            float height = Math.Max(lines[0].Count, lines[1].Count) * 19 + 75;
             Ensure(height);
             for (int i = 0; i < 2; i++) {
                 float x = bounds.Left + i * (width + 18);
                 Box(x, y, width, height, false, false);
                 Text(i == 0 ? "FROM" : "TO", x + 9, y + 8, width - 18, 18, 9, true, false, Navy);
-                for (int j = 0; j < lines[i].Count; j++) Text(lines[i][j], x + 9, y + 28 + j * 19, width - 18, 19, 10, false, false, Color.Black);
+                Text(locations[i].building, x + 9, y + 27, width - 18, 34, 17, true, false, Navy);
+                for (int j = 0; j < lines[i].Count; j++) Text(lines[i][j], x + 9, y + 61 + j * 19, width - 18, 19, 10, false, false, Color.Black);
             }
             y += height + 15;
             TextBlock("Prepared by: " + model.preparedBy, 9, false);
