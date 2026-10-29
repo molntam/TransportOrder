@@ -9,7 +9,19 @@ from uuid import uuid4
 from .integrations.sap import InputError, identifier, parse_table, quantity
 
 LOCATIONS = json.loads(Path(__file__).with_name("locations.json").read_text(encoding="utf-8"))
+LOCATIONS["toLocations"] = [r for r in LOCATIONS["toLocations"] if r["building"].upper() not in {"BUILDING 05", "BEST II", "EINDHOVEN 1"}]
 DEFAULT_ORIGIN = {"building": "Building 05", "department": "Delivery Ops", "shipTo": "B5L - Delivery Ops"}
+
+
+def default_settings():
+    return {"preparedBy": "", "origin": dict(DEFAULT_ORIGIN), "openCopies": 1,
+            "finalCopies": 2, "printer": "", "theme": "light"}
+
+
+def migrate_settings(settings):
+    result = {**default_settings(), **settings}
+    result.pop("copies", None)
+    return result
 
 
 def now():
@@ -23,7 +35,7 @@ def uid(prefix):
 def initial_state():
     return {"schema": 1, "revision": 0, "sources": {"shipto": None, "quantities": None},
             "forms": [], "pallets": [], "events": [],
-            "settings": {"preparedBy": "", "origin": dict(DEFAULT_ORIGIN), "copies": 3}}
+            "settings": default_settings()}
 
 
 def event(state, action, target, detail=""):
@@ -272,11 +284,17 @@ def apply_action(state, action, payload):
         event(state, "SAP data cleared", kind)
         return {}
     if action == "settings":
-        copies = int(payload.get("copies", 3))
-        if copies not in range(1, 6):
-            raise InputError("Choose between 1 and 5 print copies.")
-        state["settings"] = {"preparedBy": str(payload.get("preparedBy", "")).strip()[:200],
-                             "origin": clean_location(payload.get("origin")), "copies": copies}
+        settings = migrate_settings({**state["settings"], **payload})
+        for key in ("openCopies", "finalCopies"):
+            settings[key] = int(settings[key])
+            if settings[key] not in range(1, 6):
+                raise InputError("Choose between 1 and 5 copies for each document type.")
+        if settings["theme"] not in ("light", "dark", "system"):
+            raise InputError("Choose Light, Dark or Follow system.")
+        state["settings"] = {"preparedBy": str(settings["preparedBy"]).strip()[:200],
+            "origin": clean_location(settings["origin"]), "openCopies": settings["openCopies"],
+            "finalCopies": settings["finalCopies"], "printer": str(settings["printer"]).strip()[:300],
+            "theme": settings["theme"]}
         event(state, "Settings updated", "settings")
         return {}
     if action == "save_form":

@@ -6,7 +6,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from .domain import initial_state, apply_action
+from .domain import initial_state, apply_action, migrate_settings, event
 from .integrations.sap import InputError
 
 
@@ -53,6 +53,7 @@ class Store:
                     raise ValueError("Unsupported data format")
             except (ValueError, OSError) as exc:
                 raise RuntimeError(f"Cannot read {self.path}. The file has been preserved. Restore a valid backup before restarting.") from exc
+        self.state["settings"] = migrate_settings(self.state["settings"])
 
     def snapshot(self):
         with self.lock:
@@ -81,3 +82,11 @@ class Store:
             os.replace(temporary, self.path)
         finally:
             Path(temporary).unlink(missing_ok=True)
+
+    def audit(self, action, target, detail):
+        with self.lock:
+            candidate = copy.deepcopy(self.state)
+            event(candidate, action, target, detail)
+            candidate["revision"] += 1
+            self._write(candidate)
+            self.state = candidate

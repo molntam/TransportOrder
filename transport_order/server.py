@@ -17,6 +17,7 @@ from .domain import LOCATIONS, resolve, source_diagnostics
 from .integrations import PROVIDERS
 from .integrations.sap import InputError, parse_table
 from .printing import render_document
+from .native_print import PrintService, list_printers
 from .storage import ConflictError, Store, WorkspaceLock
 
 WEB = Path(__file__).with_name("web")
@@ -85,6 +86,11 @@ class Handler(BaseHTTPRequestHandler):
                     self.send(200, html, "text/html; charset=utf-8")
                 except (ValueError, KeyError) as exc:
                     self.send(400, {"error": str(exc)})
+            elif path == "/api/printers":
+                try:
+                    self.send(200, list_printers())
+                except (InputError, OSError) as exc:
+                    self.send(400, {"error": str(exc)})
             else:
                 self.send(404, {"error": "Unknown API endpoint."})
             return
@@ -121,6 +127,8 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/action":
                 result = self.store.apply(payload.get("action"), payload.get("payload", {}), payload.get("expectedRevision"))
                 result["revision"] = self.store.snapshot()["revision"]
+            elif path == "/api/print-job":
+                result = self.server.print_service.submit(self.store, payload)
             elif path == "/api/shutdown":
                 self.send(200, {"ok": True})
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
@@ -142,6 +150,7 @@ class Handler(BaseHTTPRequestHandler):
 def create_server(store, token, port=0):
     server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, store=store, token=token))
     server.daemon_threads = True
+    server.print_service = PrintService()
     return server
 
 

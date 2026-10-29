@@ -30,6 +30,7 @@ class Element {
   }
   get innerHTML() { return this.html || ""; }
   addEventListener() {}
+  setAttribute() {}
   showModal() { this.open = true; }
   close() { this.open = false; }
   focus() {}
@@ -45,20 +46,28 @@ async function main() {
   const base = "http://127.0.0.1:" + String(chunk).trim();
   const document = {
     elements:new Map(),
+    documentElement:{dataset:{}},
     querySelector(selector) { return selector.startsWith("#") ? this.elements.get(selector.slice(1)) || null : null; },
     querySelectorAll() { return []; },
     addEventListener() {},
     createElement() { return new Element(this, "temporary"); },
   };
-  for (const id of ["main","navigation","page-label","source-health","user-label","avatar","dialog","toast","refresh-button","help-icon","power-icon","app-version"]) {
+  for (const id of ["main","navigation","page-label","source-health","user-label","avatar","dialog","toast","refresh-button","help-icon","power-icon","app-version","theme-button"]) {
     document.elements.set(id, new Element(document,id));
   }
   const saved = new Map();
   const sessionStorage = {getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key)};
-  const context = vm.createContext({document,sessionStorage,console,URLSearchParams,structuredClone,Intl,Date,Number,String,Set,Map,Blob,URL,
-    location:{hash:"#session=smoke-test-session"},history:{replaceState(){}},window:{addEventListener(){}},
+  const printRequests=[];
+  const context = vm.createContext({document,crypto:require("node:crypto").webcrypto,sessionStorage,console,URLSearchParams,structuredClone,Intl,Date,Number,String,Set,Map,Blob,URL,
+    location:{hash:"#session=smoke-test-session"},history:{replaceState(){}},window:{addEventListener(){},matchMedia(){return {matches:false,addEventListener(){}};}},
     setTimeout:(fn,ms)=>setTimeout(fn,ms).unref(),clearTimeout,
-    fetch:(url,options)=>fetch(base+url,options),
+    fetch:(url,options)=>{
+      if(url==="/api/print-job"){
+        const request=JSON.parse(options.body);printRequests.push(request);
+        return Promise.resolve(new Response(JSON.stringify({status:"submitted",printer:"Test queue",copies:request.copies||(request.kind==="pallet"?2:1)}),{status:200}));
+      }
+      return fetch(base+url,options);
+    },
   });
   const execute = code => vm.runInContext(code,context);
   await execute(fs.readFileSync(path.join(root,"transport_order/web/app.js"),"utf8"));
@@ -76,6 +85,10 @@ async function main() {
   await execute('saveForm("keep_open")');
   assert.equal(execute("state.forms.length"),1);
   assert.ok(execute("selectedPallet"));
+  assert.equal(printRequests.length,1);
+  assert.equal(printRequests[0].kind,"form");
+  assert.equal(document.elements.get("dialog").open,false);
+  await execute('openPreview({kind:"form",id:state.forms[0].id,revision:1})');
   assert.match(document.elements.get("print-frame").srcdoc,/Keep this note/);
 
   execute('editor.lines=[{...emptyLine(),hu:"DEMO-HU-002"}]');
@@ -84,6 +97,10 @@ async function main() {
   await execute('saveForm("finalise")');
   assert.equal(execute("state.pallets[0].status"),"finalised");
   assert.equal(execute("state.pallets[0].versions[0].forms.length"),2);
+  assert.equal(printRequests.length,2);
+  assert.equal(printRequests[1].kind,"pallet");
+  assert.equal(document.elements.get("dialog").open,false);
+  await execute('openPreview({kind:"pallet",id:state.pallets[0].id,revision:1})');
   assert.match(document.elements.get("print-frame").srcdoc,/Delivery summary/);
   assert.match(document.elements.get("print-frame").srcdoc,/EMERGENCY/);
 
@@ -106,9 +123,24 @@ async function main() {
   execute('editor=newEditor(null);selectedPallet=null;editor.mode="manual";editor.destination={building:"Demo",department:"Tools",shipTo:"Demo dock"};editor.lines=[{...emptyLine(),description:"Manual material",qty:"2"}]');
   await execute('saveForm("keep_open")');
   assert.equal(execute("state.forms.length"),3);
+  await execute('openPreview({kind:"form",id:state.forms[2].id,revision:1})');
   assert.match(document.elements.get("print-frame").srcdoc,/Manual material/);
-  console.log("UI smoke passed: all five views, imports, HU resolution, quantity sum, two-form consolidation, Emergency, print HTML, reopening, conflict rejection and manual entry.");
-  console.log("This is a DOM-shell/API integration check, not a rendered-browser or physical-printer test.");
+  assert.equal(execute('directory.toLocations.some(r=>["Building 05","Best II","Eindhoven 1"].includes(r.building))'),false);
+  assert.match(execute('renderPresets("Building 21")'),/Building 21 — NL15C/);
+  await execute('actions["toggle-theme"]()');
+  assert.equal(document.documentElement.dataset.theme,"dark");
+  assert.equal(execute('state.settings.theme'),"dark");
+  execute('pasteGrid("quantities","Document\\tHandling Unit\\tQuantity\\nD1\\t00001\\t1,5")');
+  assert.equal(execute('imports.quantities.grid[1][1]'),"00001");
+  assert.match(execute('sourcePayload("quantities").text'),/D1\t00001\t1,5/);
+  execute('pasteGrid("quantities","D2\\t00002\\t3",10,0)');
+  assert.equal(execute('imports.quantities.grid[10][1]'),"00002");
+  assert.match(execute('sourceGrid("quantities")'),/data-grid-row="10"/);
+  execute('pasteGrid("quantities","Document\\tHandling Unit\\tQuantity\\nD3\\t00003\\t5")');
+  assert.equal(execute('imports.quantities.grid.length'),2);
+  assert.equal(execute(`parseGridClipboard(${JSON.stringify('"Description"\t"HU"\n"Line 1\nLine 2"\t"H1"')})[1][0]`),"Line 1\nLine 2");
+  console.log("UI smoke passed: all five views, imports, HU resolution, quantity sum, two-form consolidation, direct-print requests, themes, editable cell paste, filtered destinations, reopening, conflicts and manual entry.");
+  console.log("This is a DOM-shell/API integration check, native submission is mocked; this is not a physical-printer test.");
 }
 
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>{

@@ -5,6 +5,8 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const esc = escapeHtml;
 const paths = {
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1 1M18 18l1 1M5 19l1-1M18 6l1-1"/>',
+  moon:'<path d="M20 14A9 9 0 0 1 10 3a9 9 0 1 0 10 11Z"/>',
   grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   form:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
   database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 12c0 4 16 4 16 0"/>',
@@ -48,7 +50,74 @@ if (location.hash.includes("session=")) history.replaceState(null, "", "/");
 let state, directory, diagnostics, providers, view = "create", selectedPallet = null, editor, dirty = false, busy = false;
 let originExpanded = false, receiverExpanded = false, bulkExpanded = false, resolving = 0, resolveResult = null;
 let filter = "all", historyTab = "forms", search = "", dialogCallback = null, previewDocument = null;
-const imports = {shipto:{text:"",decimalMark:"."},quantities:{text:"",decimalMark:"."}};
+const GRID_HEADERS = {
+  shipto:["Outbound Delivery Order","ERP Document","Handling Unit","Number of Items","Ship-To","Storage Bin","Number of Handling Units","Shipping Condition","Changed On","Changed At","Storage Type","External Delivery ID"],
+  quantities:["Document","Handling Unit","Quantity"]
+};
+const gridDraft = kind => ({text:"",decimalMark:".",grid:[[...GRID_HEADERS[kind]]],gridPage:0});
+const imports = {shipto:gridDraft("shipto"),quantities:gridDraft("quantities")};
+let printerInfo = {supported:null,printers:[],defaultPrinter:"",error:""}, pendingPrint = null, printingBusy = false;
+
+function applyTheme(theme = state?.settings.theme || "light") {
+  const dark = theme === "dark" || (theme === "system" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  const button = $("#theme-button");
+  if(button) { button.innerHTML=icon(dark?"sun":"moon");button.title=dark?"Switch to light mode":"Switch to dark mode";button.setAttribute("aria-label",button.title); }
+}
+
+async function loadPrinters() {
+  try { printerInfo={...await api("printers"),error:""}; }
+  catch(error) { printerInfo={supported:true,printers:[],defaultPrinter:"",error:error.message}; }
+}
+
+function parseGridClipboard(text) {
+  text=text.replace(/^\uFEFF/,"");
+  const first=text.split(/\r?\n/)[0];
+  const delimiter=!/[\n\r\t]/.test(text)?"\t":text.includes("\t")?"\t":first.includes(";")?";":first.includes("|")?"|":",";
+  const rows=[];let row=[],value="",quoted=false;
+  for(let i=0;i<text.length;i++) {
+    const c=text[i];
+    if(c==='"'&&(quoted||!value)) { if(quoted&&text[i+1]==='"'){value+='"';i++;}else quoted=!quoted; }
+    else if(c===delimiter&&!quoted){row.push(value);value="";}
+    else if((c==="\n"||c==="\r")&&!quoted){if(c==="\r"&&text[i+1]==="\n")i++;row.push(value);rows.push(row);row=[];value="";}
+    else value+=c;
+  }
+  if(value||row.length){row.push(value);rows.push(row);}
+  return rows.map(row=>delimiter==="|"?row.slice(!row[0]?.trim()?1:0,!row.at(-1)?.trim()?-1:undefined):row).filter(row=>row.some(v=>v.trim())&&!row.every(v=>/^[-+ =]*$/.test(v)));
+}
+
+function isGridHeader(row) {
+  const cells=row.map(v=>v.toLowerCase().replace(/[^a-z0-9]/g,""));
+  return cells.some(v=>["handlingunit","hu"].includes(v)) && cells.some(v=>["document","outbounddeliveryorder","erpdocument","doc"].includes(v));
+}
+
+function gridText(rows) {
+  return rows.filter(row=>row.some(v=>String(v).trim())).map(row=>row.map(v=>/[\t\n\r"]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v).join("\t")).join("\n");
+}
+
+function pasteGrid(kind,text,row=1,column=0) {
+  const values=parseGridClipboard(text), draft=imports[kind];
+  if(!values.length)return;
+  if(column===0&&isGridHeader(values[0])){row=0;draft.grid=[];}
+  else if(row===0&&column===0)row=1;
+  if(row+values.length>50001||column+Math.max(...values.map(r=>r.length))>100)throw new Error("Use at most 50,000 data rows and 100 columns.");
+  for(let r=0;r<values.length;r++) {
+    draft.grid[row+r] ||= [];
+    for(let c=0;c<values[r].length;c++)draft.grid[row+r][column+c]=values[r][c];
+  }
+  delete draft.fileBase64;delete draft.filename;draft.text="";draft.gridPage=Math.floor(Math.max(row-1,0)/50);
+}
+
+function columnLetter(index) {
+  let result="";for(index++;index;index=Math.floor((index-1)/26))result=String.fromCharCode(65+(index-1)%26)+result;return result;
+}
+
+function sourceGrid(kind) {
+  const draft=imports[kind], grid=draft.grid, columns=Math.max(GRID_HEADERS[kind].length,...Array.from(grid,row=>row?.length||0)), page=draft.gridPage||0;
+  const total=Math.max(12,grid.length-1), start=page*50+1, end=Math.min(start+50,total+1);
+  const cell=(row,col)=>`<td><input data-grid="${kind}" data-grid-row="${row}" data-grid-column="${col}" aria-label="${kind} cell ${columnLetter(col)}${row+1}" value="${esc(grid[row]?.[col]||"")}" autocomplete="off" spellcheck="false"></td>`;
+  return `<div class="sap-grid-wrap"><table class="sap-grid" aria-label="${kind} SAP input cells"><thead><tr><th></th>${Array.from({length:columns},(_,c)=>`<th>${columnLetter(c)}</th>`).join("")}</tr><tr class="sap-headers"><th>1</th>${Array.from({length:columns},(_,c)=>cell(0,c)).join("")}</tr></thead><tbody>${Array.from({length:Math.max(0,end-start)},(_,i)=>{const r=start+i;return `<tr><th>${r+1}</th>${Array.from({length:columns},(_,c)=>cell(r,c)).join("")}</tr>`;}).join("")}</tbody></table></div><div class="grid-toolbar"><span>${grid.slice(1).filter(r=>r.some(v=>String(v).trim())).length} pasted rows · click a cell and press Ctrl+V</span><div class="inline-actions"><button class="btn small" data-action="grid-page" data-kind="${kind}" data-step="-1" ${page===0?"disabled":""}>Previous</button><span>${page+1} / ${Math.ceil(total/50)}</span><button class="btn small" data-action="grid-page" data-kind="${kind}" data-step="1" ${end>total?"disabled":""}>Next</button><button class="btn small" data-action="clear-grid" data-kind="${kind}">Clear cells</button></div></div>`;
+}
 
 function newEditor(palletId = selectedPallet) {
   const pallet = state.pallets.find(p=>p.id===palletId && p.status==="open");
@@ -73,6 +142,7 @@ async function loadState() {
 }
 
 function updateShell() {
+  applyTheme();
   const items = [["create","form","Create order"],["infeed","database","Data infeed"],["pallets","box","Pallets"],["history","history","History"],["settings","settings","Settings"]];
   $("#navigation").innerHTML = items.map(([id,ico,label])=>`<button class="nav-item ${view===id?"active":""}" data-action="navigate" data-view="${id}" title="${label}" ${view===id?'aria-current="page"':''}>${icon(ico)}<span>${label}</span>${id==="pallets"&&state.pallets.some(p=>p.status==="open")?`<b class="nav-count">${state.pallets.filter(p=>p.status==="open").length}</b>`:""}</button>`).join("");
   $("#page-label").textContent = items.find(i=>i[0]===view)?.[2] || "Create order";
@@ -158,9 +228,9 @@ function renderPalletPanel() {
     <div class="panel-bottom">${selected?`<p>Adding to <b>${esc(selected.destination.building)}</b>. Forms must share the same destination and origin.</p><button class="btn primary wide" data-action="finalise-selected">Finalise selected pallet ${icon("check")}</button><button class="btn text wide" data-action="new-form" data-detach="true">Start a different pallet</button>`:`<p>Individual forms print without a QR. Finalise when the whole pallet is ready.</p><button class="new-pallet-target" data-action="new-form" data-detach="true">${icon("plus")} New pallet</button>`}</div>`;
 }
 
-function sourceCard(kind, title, description, headers) {
-  const source = state.sources[kind], draft = imports[kind];
-  return `<section class="card"><div class="card-head"><div><h2>${title}</h2><p>${description}</p></div>${icon("database")}</div><div class="card-body"><div class="source-indicator"><span><strong>${source?nfmt(source.count):"0"}</strong> records · ${source?nfmt(source.uniqueHus):"0"} HUs</span><span>${source?formatDate(source.importedAt):"Not imported"}</span></div><label>Paste the SAP table, including headers<textarea class="paste-input" data-import="${kind}" placeholder="${esc(headers.join("\t"))}">${esc(draft.text)}</textarea></label><div class="source-options"><button class="btn small" data-action="choose-file" data-kind="${kind}">${icon("upload")}Import file</button><input class="file-input" type="file" id="file-${kind}" data-file="${kind}" accept=".xlsx,.csv,.tsv,.txt"><label>Decimal separator<select data-decimal="${kind}"><option value="." ${draft.decimalMark==="."?"selected":""}>Point (1.5)</option><option value="," ${draft.decimalMark===","?"selected":""}>Comma (1,5)</option></select></label></div>${draft.filename?`<div class="banner">${icon("form")}${esc(draft.filename)}<button class="subtle-button" data-action="discard-file" data-kind="${kind}">Remove</button></div>`:""}<button class="btn primary wide" data-action="preview-import" data-kind="${kind}">Preview &amp; validate ${icon("arrow")}</button><div class="source-fields">Required headers<br>${headers.map(esc).join(" · ")}</div><div class="source-footer"><span>${source?esc(source.filename):"XLSX, CSV, TSV or pasted table"}</span><button class="subtle-button" data-action="clear-source" data-kind="${kind}" ${!source?"disabled":""}>Clear loaded data</button></div></div></section>`;
+function sourceCard(kind,title,description,headers) {
+  const source=state.sources[kind],draft=imports[kind];
+  return `<section class="card"><div class="card-head"><div><h2>${title}</h2><p>${description}</p></div>${icon("database")}</div><div class="card-body"><div class="source-indicator"><span><strong>${source?nfmt(source.count):"0"}</strong> loaded records · ${source?nfmt(source.uniqueHus):"0"} HUs</span><span>${source?formatDate(source.importedAt):"Not imported"}</span></div><div class="banner">${icon("info")}Paste data into any cell. Headers are prefilled; pasting a full table with SAP headers replaces the input cells.</div>${sourceGrid(kind)}<div class="source-options"><div class="inline-actions"><button class="btn small" data-action="clipboard-grid" data-kind="${kind}">${icon("save")}Paste from clipboard</button><button class="btn small" data-action="choose-file" data-kind="${kind}">${icon("upload")}Import file</button></div><input class="file-input" type="file" id="file-${kind}" data-file="${kind}" accept=".xlsx,.csv,.tsv,.txt"><label>Decimal separator<select data-decimal="${kind}"><option value="." ${draft.decimalMark==="."?"selected":""}>Point (1.5)</option><option value="," ${draft.decimalMark===","?"selected":""}>Comma (1,5)</option></select></label></div>${draft.filename?`<div class="banner">${icon("form")}${esc(draft.filename)}<button class="subtle-button" data-action="discard-file" data-kind="${kind}">Remove</button></div>`:""}<button class="btn primary wide" data-action="preview-import" data-kind="${kind}">Preview &amp; validate ${icon("arrow")}</button><div class="source-footer"><span>${source?esc(source.filename):"XLSX, CSV, TSV or clipboard cells"}</span><button class="subtle-button" data-action="clear-source" data-kind="${kind}" ${!source?"disabled":""}>Clear loaded data</button></div></div></section>`;
 }
 
 function renderInfeed() {
@@ -194,7 +264,10 @@ function renderHistory() {
 }
 
 function renderSettings() {
-  return heading("Workspace preferences","Settings","Set your default origin, print copies and preparation details.") + `<div class="settings-layout"><section class="card"><div class="card-head"><h2>Shipping preferences</h2>${icon("settings")}</div><div class="card-body"><label>Prepared by / username<input id="setting-name" value="${esc(state.settings.preparedBy)}" placeholder="e.g. your Windows username"><span class="field-hint">Printed on forms. This is a local profile, not an authenticated identity.</span></label><h3>Default origin</h3>${locationFields("settingOrigin",state.settings.origin,"fromLocations")}<label>Printed copies<select id="setting-copies">${[1,2,3,4,5].map(n=>`<option ${state.settings.copies===n?"selected":""} value="${n}">${n} ${n===1?"copy":"copies"}</option>`).join("")}</select><span class="field-hint">Copies are included in the document. Leave the printer dialog at one copy.</span></label><div class="settings-actions"><button class="btn primary" data-action="save-settings">Save preferences</button><button class="btn" data-action="backup">${icon("download")}Export backup</button></div></div></section><aside class="settings-note"><strong>Saved on this computer</strong><p>Your imported tables, forms and pallets are stored in your local workspace. Closing the application does not clear them.</p><ul><li>Drafts can be resumed in History.</li><li>Each completed edit keeps a document revision.</li><li>Reopening a pallet preserves its previous consolidation.</li><li>A previous-state backup is kept automatically.</li></ul><p>Shared storage, QR tracking and Spotfire collection are not connected in this version.</p></aside></div>`;
+  const settings=state.settings;
+  const options=selected=>[1,2,3,4,5].map(n=>`<option value="${n}" ${selected===n?"selected":""}>${n} ${n===1?"copy":"copies"}</option>`).join("");
+  const printers=[...new Set([...(settings.printer?[settings.printer]:[]),...printerInfo.printers])];
+  return heading("Workspace preferences","Settings","Choose your appearance, printer and copy counts.") + `<div class="settings-layout"><section class="card"><div class="card-head"><h2>Shipping preferences</h2>${icon("settings")}</div><div class="card-body"><label>Appearance<select id="setting-theme"><option value="light" ${settings.theme==="light"?"selected":""}>Light</option><option value="dark" ${settings.theme==="dark"?"selected":""}>Dark</option><option value="system" ${settings.theme==="system"?"selected":""}>Follow system</option></select></label><label>Prepared by / username<input id="setting-name" value="${esc(settings.preparedBy)}" placeholder="Your username"></label><h3>Default origin</h3>${locationFields("settingOrigin",settings.origin,"fromLocations")}<h3>Direct printing</h3><label>Printer<select id="setting-printer"><option value="" ${!settings.printer?"selected":""}>Windows default${printerInfo.defaultPrinter?" — "+esc(printerInfo.defaultPrinter):" (follows Windows)"}</option>${printers.map(name=>`<option value="${esc(name)}" ${settings.printer===name?"selected":""}>${esc(name)}</option>`).join("")}</select><span class="field-hint">Windows default is resolved for every print job. Selecting a printer here does not change your Windows default.</span></label><button class="btn small" data-action="refresh-printers">${icon("refresh")}Refresh printers</button>${printerInfo.supported===false?`<div class="banner warn mt">Direct printing is available on Windows. Document preview is available here.</div>`:""}${printerInfo.error?`<div class="banner error mt">${esc(printerInfo.error)}</div>`:""}<div class="fields two mt"><label>Open form copies<select id="setting-open-copies">${options(settings.openCopies)}</select><span class="field-hint">Default: 1 copy when keeping a pallet open.</span></label><label>Finalised pallet copies<select id="setting-final-copies">${options(settings.finalCopies)}</select><span class="field-hint">Default: 2 copies of the consolidation.</span></label></div><div class="settings-actions"><button class="btn primary" data-action="save-settings">Save preferences</button><button class="btn" data-action="backup">${icon("download")}Export backup</button></div></div></section><aside class="settings-note"><strong>Print directly from the form</strong><p>Print &amp; keep open sends the individual form to your printer. Finalise pallet sends the consolidated document. Neither action opens a browser print screen.</p><p>Saved revisions remain available in History for preview or reprinting. A print error keeps the saved document available for retry.</p><strong>Saved on this computer</strong><p>Imported tables, forms, pallets and your preferences remain available between sessions.</p></aside></div>`;
 }
 
 function render() {
@@ -279,16 +352,30 @@ async function saveForm(intent) {
     toast("Draft saved. Resume it here or from History.");
   } else {
     editor = newEditor();
-    toast(intent==="finalise"?"Pallet finalised. Consolidated print preview is ready.":"Form saved. The pallet stays open.");
+    toast(intent==="finalise"?"Pallet finalised. Sending the consolidation to your printer…":"Form saved. Sending it to your printer…");
   }
   render();
-  if (result.print) await openPreview(result.print);
+  if (result.print) await submitPrint(result.print);
+}
+
+async function submitPrint(document) {
+  if(printingBusy)throw new Error("A print submission is already in progress.");
+  printingBusy=true;pendingPrint={...document,requestId:document.requestId||globalThis.crypto.randomUUID()};
+  try {
+    const result=await api("print-job",pendingPrint);
+    await loadState();render();
+    $("#dialog").close();
+    toast(`${result.copies} ${result.copies===1?"copy":"copies"} sent to ${result.printer}.`);
+    if(result.auditWarning)message("Print submitted",result.auditWarning);
+  } catch(error) {
+    showDialog("Document saved · printing needs attention",`<div class="dialog-body"><p class="dialog-message">${esc(error.message)}</p><p>The form or pallet is already saved. Check the queue before retrying; no automatic retry is made.</p></div>`,`<button class="btn" data-action="close-dialog">Close</button><button class="btn" data-action="preview-pending">Preview document</button><button class="btn primary" data-action="retry-print">Retry printing</button>`);
+  } finally { printingBusy=false; }
 }
 
 async function openPreview(document) {
   previewDocument = document;
   const html = await api("print?" + new URLSearchParams({...document,copies:1}),undefined,true);
-  showDialog(document.kind==="pallet"?"Pallet consolidation":"Transport order",`<div class="preview-summary">${esc(document.id)} · Revision ${document.revision} · Review, then print or choose Save as PDF in your printer dialog.</div><iframe id="print-frame" class="preview-frame" title="Printable transport document"></iframe>`,`<label>Copies<select id="print-copies">${[1,2,3,4,5].map(n=>`<option value="${n}" ${state.settings.copies===n?"selected":""}>${n}</option>`).join("")}</select></label><button class="btn" data-action="close-dialog">Close</button><button class="btn primary" data-action="print-document">${icon("print")}Print / Save PDF</button>`,true);
+  showDialog(document.kind==="pallet"?"Pallet consolidation":"Transport order",`<div class="preview-summary">${esc(document.id)} · Revision ${document.revision} · Saved document preview. Direct printing uses your selected Windows printer.</div><iframe id="print-frame" class="preview-frame" title="Printable transport document"></iframe>`,`<label>Copies<select id="print-copies">${[1,2,3,4,5].map(n=>`<option value="${n}" ${state.settings[document.kind==="pallet"?"finalCopies":"openCopies"]===n?"selected":""}>${n}</option>`).join("")}</select></label><button class="btn" data-action="close-dialog">Close</button><button class="btn primary" data-action="browser-pdf">Save PDF</button><button class="btn primary" data-action="print-document">${icon("print")}Print directly</button>`,true);
   $("#print-frame").srcdoc=html;
 }
 
@@ -306,12 +393,12 @@ function detail(kind, id) {
 
 function renderPresets(building="all", query="") {
   const matches = directory.toLocations.map((r,index)=>({...r,index})).filter(r=>(building==="all"||r.building===building)&&JSON.stringify(r).toLowerCase().includes(query.toLowerCase()));
-  return matches.map(r=>`<button class="destination-option" data-action="choose-destination" data-index="${r.index}"><strong>${esc(r.label||r.building)}</strong>${esc(r.department)}<small>${esc(r.sourceCode||r.shipTo)}</small></button>`).join("") || `<p>No matching destinations.</p>`;
+  return matches.map(r=>`<button class="destination-option" data-action="choose-destination" data-index="${r.index}"><strong>${esc(r.building)} — ${esc(r.sourceCode||r.shipTo)}</strong><span>${esc(r.department)}</span>${r.label?`<small>${esc(r.label)}</small>`:""}</button>`).join("") || `<p>No matching destinations.</p>`;
 }
 
 function sourcePayload(kind) {
   const draft = imports[kind];
-  return {kind,text:draft.text,decimalMark:draft.decimalMark,...(draft.fileBase64?{fileBase64:draft.fileBase64}:{}),filename:draft.filename||"Pasted SAP table"};
+  return {kind,text:draft.fileBase64?"":draft.text||gridText(draft.grid),decimalMark:draft.decimalMark,...(draft.fileBase64?{fileBase64:draft.fileBase64}:{}),filename:draft.filename||"Pasted SAP table"};
 }
 
 async function previewImport(kind) {
@@ -321,7 +408,7 @@ async function previewImport(kind) {
 }
 
 const actions = {
-  async navigate(b) { view=b.dataset.view; filter="all"; search=""; render(); },
+  async navigate(b) { view=b.dataset.view; filter="all"; search=""; if(view==="settings")await loadPrinters();render(); },
   async refresh() { await loadState(); render(); toast("Saved data refreshed. Your current form is preserved."); },
   async mode(b) { if(editor.mode===b.dataset.mode)return; editor.mode=b.dataset.mode; resolveResult=null; editor.lines.forEach(l=>l.issues=[]); markDirty(); render(); if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async origin() { originExpanded=!originExpanded; render(); },
@@ -335,14 +422,14 @@ const actions = {
   async "clear-form"() { if(!await confirmDiscard())return; editor=newEditor();dirty=false;resolveResult=null;render(); },
   async "new-form"(b) { if(!await confirmDiscard())return; if(b.dataset.detach)selectedPallet=null; editor=newEditor();dirty=false;resolveResult=null;view="create";$("#dialog").close();render(); },
   async "select-pallet"(b) { if(!await confirmDiscard())return; selectedPallet=b.dataset.id;editor=newEditor();dirty=false;resolveResult=null;view="create";$("#dialog").close();render(); },
-  async "finalise-selected"() { if(!selectedPallet)return; if(dirty&&editor.lines.some(l=>["hu","description","part","dn"].some(k=>l[k]))) { await saveForm("finalise"); return; } if(!await confirmAction("Finalise this pallet?","This closes the pallet and creates its consolidated document. It can be reopened from History for corrections.","Finalise pallet"))return; const result=await mutate("finalise_pallet",{id:selectedPallet});selectedPallet=null;editor=newEditor();dirty=false;render();await openPreview(result.print); },
+  async "finalise-selected"() { if(!selectedPallet)return; if(dirty&&editor.lines.some(l=>["hu","description","part","dn"].some(k=>l[k]))) { await saveForm("finalise"); return; } if(!await confirmAction("Finalise this pallet?","This closes the pallet and creates its consolidated document. It can be reopened from History for corrections.","Finalise pallet"))return; const result=await mutate("finalise_pallet",{id:selectedPallet});selectedPallet=null;editor=newEditor();dirty=false;render();await submitPrint(result.print); },
   async "edit-form"(b) { if(!await confirmDiscard())return; const f=state.forms.find(r=>r.id===b.dataset.id);const p=state.pallets.find(r=>r.id===f.palletId);if(p&&p.status!=="open")throw new Error("Reopen this pallet before editing its forms.");editor=structuredClone(f);delete editor.versions;editor.destinationOverride=Boolean(f.overridden||f.overrideReason);if(!editor.lines.length)editor.lines=[emptyLine()];selectedPallet=f.palletId;dirty=false;resolveResult=null;view="create";$("#dialog").close();render(); },
   async presets(b) { const building=b.dataset.building;showDialog("Choose a destination",`<div class="dialog-body"><label class="search-box">${icon("search")}<input id="preset-search" data-building="${esc(building)}" placeholder="Search building, department or ship-to"></label><div class="dialog-routes" id="preset-results">${renderPresets(building)}</div></div>`); },
   async "choose-destination"(b) { const r=directory.toLocations[Number(b.dataset.index)];editor.destination={building:r.building,department:r.department,shipTo:r.shipTo};editor.destinationOverride=editor.mode==="automatic";if(r.shipTo==="KEYSIGHT"&&!editor.remarks.includes("KEYSIGHT Tech."))editor.remarks=[editor.remarks,"KEYSIGHT Tech."].filter(Boolean).join("\n");markDirty();$("#dialog").close();render();if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async "choose-file"(b) { $("#file-"+b.dataset.kind).click(); },
-  async "discard-file"(b) { imports[b.dataset.kind]={text:"",decimalMark:imports[b.dataset.kind].decimalMark};render(); },
+  async "discard-file"(b) { imports[b.dataset.kind]={...gridDraft(b.dataset.kind),decimalMark:imports[b.dataset.kind].decimalMark};render(); },
   async "preview-import"(b) { await previewImport(b.dataset.kind); },
-  async "apply-import"(b) { if($("#import-warning-ack")&&!$("#import-warning-ack").checked)throw new Error("Review the import warnings and tick the acknowledgement before applying.");const kind=b.dataset.kind;await mutate("import",sourcePayload(kind));imports[kind]={text:"",decimalMark:imports[kind].decimalMark};$("#dialog").close();render();toast("SAP table applied. Saved forms have not changed."); },
+  async "apply-import"(b) { if($("#import-warning-ack")&&!$("#import-warning-ack").checked)throw new Error("Review the import warnings and tick the acknowledgement before applying.");const kind=b.dataset.kind;await mutate("import",sourcePayload(kind));imports[kind]={...gridDraft(kind),decimalMark:imports[kind].decimalMark};$("#dialog").close();render();toast("SAP table applied. Saved forms have not changed."); },
   async "clear-source"(b) { if(!await confirmAction("Clear this SAP table?","This removes the loaded source data. Saved forms and pallets are preserved.","Clear table"))return;await mutate("clear_source",{kind:b.dataset.kind});$("#dialog").close();render();toast("Source table cleared."); },
   async filter(b) { filter=b.dataset.filter;render(); },
   async "history-tab"(b) { historyTab=b.dataset.tab;filter="all";search="";render(); },
@@ -351,13 +438,22 @@ const actions = {
   async version(b) { await openPreview({kind:b.dataset.kind,id:b.dataset.id,revision:Number(b.dataset.revision)}); },
   async reopen(b) { const id=b.dataset.id;const reason=await confirmAction("Reopen pallet?","The previous consolidation remains in History and will be marked superseded. Finalise again after correcting the pallet.","Reopen pallet",true);if(!reason)return;await mutate("reopen_pallet",{id,reason});$("#dialog").close();render();toast("Pallet reopened. Its forms can now be edited."); },
   async "remove-form"(b) { const id=b.dataset.id;const reason=await confirmAction("Remove this form?","The form will leave the active pallet. Its previous documents and activity remain in History.","Remove form",true);if(!reason)return;await mutate("remove_form",{id,reason});if(editor.id===id){editor=newEditor();dirty=false;}$("#dialog").close();render();toast("Form removed from the active pallet."); },
-  async "save-settings"() { const origin={};for(const k of ["building","department","shipTo"])origin[k]=$(`[data-field="settingOrigin.${k}"]`).value;await mutate("settings",{preparedBy:$("#setting-name").value,copies:Number($("#setting-copies").value),origin});render();toast("Preferences saved. New forms will use these defaults."); },
+  async "toggle-theme"() { const theme=document.documentElement.dataset.theme==="dark"?"light":"dark";await mutate("settings",{theme});render(); },
+  async "refresh-printers"() { await loadPrinters();const select=$("#setting-printer"),selected=select.value;select.innerHTML=`<option value="">Windows default${printerInfo.defaultPrinter?" — "+esc(printerInfo.defaultPrinter):" (follows Windows)"}</option>`+[...new Set([...(selected?[selected]:[]),...printerInfo.printers])].map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join("");select.value=selected;toast(printerInfo.error||"Windows printers refreshed."); },
+  async "save-settings"() { const origin={};for(const k of ["building","department","shipTo"])origin[k]=$(`[data-field="settingOrigin.${k}"]`).value;await mutate("settings",{preparedBy:$("#setting-name").value,openCopies:Number($("#setting-open-copies").value),finalCopies:Number($("#setting-final-copies").value),printer:$("#setting-printer").value,theme:$("#setting-theme").value,origin});render();toast("Preferences saved."); },
+  async "clipboard-grid"(b) { try{const text=await navigator.clipboard.readText();pasteGrid(b.dataset.kind,text);render();}catch{message("Paste into a cell","Click the first data cell and press Ctrl+V to paste your copied SAP table.");} },
+  async "grid-page"(b) { imports[b.dataset.kind].gridPage+=Number(b.dataset.step);render(); },
+  async "clear-grid"(b) { if(!await confirmAction("Clear input cells?","This clears only the pasted cells. Your loaded SAP data and saved forms are kept.","Clear cells"))return;imports[b.dataset.kind]=gridDraft(b.dataset.kind);render(); },
+
   async backup() { const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="TransportOrder-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Backup exported."); },
-  async "print-document"() { const copies=Number($("#print-copies").value);const html=await api("print?"+new URLSearchParams({...previewDocument,copies}),undefined,true);const frame=$("#print-frame");frame.onload=()=>{frame.onload=null;frame.contentWindow.focus();frame.contentWindow.print();};frame.srcdoc=html; },
+  async "browser-pdf"() { const copies=Number($("#print-copies").value);const html=await api("print?"+new URLSearchParams({...previewDocument,copies}),undefined,true);const frame=$("#print-frame");frame.onload=()=>{frame.onload=null;frame.contentWindow.focus();frame.contentWindow.print();};frame.srcdoc=html; },
+  async "print-document"() { await submitPrint({...previewDocument,copies:Number($("#print-copies").value)}); },
+  async "retry-print"() { if(!await confirmAction("Retry this print job?","Check the Windows print queue first. Retry only if the previous job did not reach the queue.","Retry printing"))return;await submitPrint(pendingPrint); },
+  async "preview-pending"() { await openPreview(pendingPrint); },
   async "close-dialog"() { if(dialogCallback){const done=dialogCallback;dialogCallback=null;done(false);}$("#dialog").close(); },
   async "cancel-confirm"() { const done=dialogCallback;dialogCallback=null;$("#dialog").close();done?.(false); },
   async "accept-confirm"() { const input=$("#confirm-reason");const value=input?input.value.trim():true;if(input&&!value){input.focus();return;}const done=dialogCallback;dialogCallback=null;$("#dialog").close();done?.(value); },
-  async help() { showDialog("Your shipping workflow",`<div class="dialog-body"><h3>1. Load the SAP data</h3><p>Open Data infeed. Paste Ship-to and Quantities including their headers, or import the XLSX files. Check the preview and apply each table.</p><h3>2. Prepare a form</h3><p>Paste HUs into the form. DN, destination, quantity and Emergency fill automatically. Add descriptions, part numbers and remarks as needed. Use Manual mode for exceptions.</p><h3>3. Build the pallet</h3><p>Choose Print &amp; keep open to save the form and open its print preview. Select that pallet on the right to add more forms. Start a different pallet if the destination changes.</p><h3>4. Finalise when ready</h3><p>Finalisation creates a consolidated document listing every delivery and HU. Open History to reprint, inspect revisions or reopen a pallet for correction.</p><div class="banner">${icon("info")}This phase saves on this computer. QR tracking, driver confirmations, shared storage and Spotfire are not connected yet.</div></div>`,`<button class="btn primary" data-action="close-dialog">Start preparing</button>`); },
+  async help() { showDialog("Your shipping workflow",`<div class="dialog-body"><h3>1. Load the SAP data</h3><p>Open Data infeed. Paste Ship-to and Quantities including their headers, or import the XLSX files. Check the preview and apply each table.</p><h3>2. Prepare a form</h3><p>Paste HUs into the form. DN, destination, quantity and Emergency fill automatically. Add descriptions, part numbers and remarks as needed. Use Manual mode for exceptions.</p><h3>3. Build the pallet</h3><p>Choose Print &amp; keep open to save the form and print one copy by default, without a browser print screen. Select that pallet on the right to add more forms. Start a different pallet if the destination changes.</p><h3>4. Finalise when ready</h3><p>Finalisation prints two copies by default of a consolidation listing every delivery and HU. Open History to reprint, inspect revisions or reopen a pallet for correction.</p><div class="banner">${icon("info")}This phase saves on this computer. QR tracking, driver confirmations, shared storage and Spotfire are not connected yet.</div></div>`,`<button class="btn primary" data-action="close-dialog">Start preparing</button>`); },
   async shutdown() { if(!await confirmDiscard())return;if(!await confirmAction("Close TransportOrder?","Your saved drafts, forms and pallets will be available next time you start the application.","Close application"))return;await api("shutdown",{});dirty=false;sessionStorage.removeItem("transport-order.editor");$("#dialog").close();$("#main").innerHTML=heading("Workspace closed","All saved work is kept","You can close this window. Run the application again to continue."); },
   async demo() {
     if(!await confirmAction("Load fictional SAP data?","This replaces both imported tables with clearly fictional records. Existing forms and pallets are kept.","Load demo tables"))return;
@@ -388,7 +484,10 @@ document.addEventListener("input",event=>{
     if(keys[0]==="destination")editor.destinationOverride=editor.mode==="automatic";
     markDirty();
   }
-  if(input.dataset.import) { imports[input.dataset.import].text=input.value;delete imports[input.dataset.import].fileBase64;delete imports[input.dataset.import].filename; }
+  if(input.dataset.grid) {
+    const draft=imports[input.dataset.grid],row=Number(input.dataset.gridRow),col=Number(input.dataset.gridColumn);
+    draft.grid[row] ||= [];draft.grid[row][col]=input.value;draft.text="";delete draft.fileBase64;delete draft.filename;
+  }
   if(input.id==="preset-search")$("#preset-results").innerHTML=renderPresets(input.dataset.building,input.value);
   if(input.id==="record-search") { const start=input.selectionStart;search=input.value;const content=view==="pallets"?renderPallets():renderHistory();$("#main").innerHTML=content;$("#record-search").focus();$("#record-search").setSelectionRange(start,start); }
 });
@@ -399,6 +498,7 @@ document.addEventListener("change",async event=>{
     if(input.dataset.lineField==="hu"&&editor.mode==="automatic")await resolveEditor();
     if(input.dataset.field?.startsWith("destination.")||input.dataset.field?.startsWith("origin."))render();
     if(input.dataset.field==="overrideReason"&&editor.mode==="automatic")await resolveEditor();
+    if(input.id==="setting-theme")applyTheme(input.value);
     if(input.dataset.decimal)imports[input.dataset.decimal].decimalMark=input.value;
     if(input.dataset.file&&input.files[0]) {
       const file=input.files[0],kind=input.dataset.file;
@@ -407,8 +507,8 @@ document.addEventListener("change",async event=>{
       if(file.name.toLowerCase().endsWith(".xlsx")) {
         const data=new Uint8Array(await file.arrayBuffer());let binary="";
         for(let i=0;i<data.length;i+=8192)binary+=String.fromCharCode(...data.subarray(i,i+8192));
-        draft.fileBase64=btoa(binary);draft.text="";
-      } else { draft.text=await file.text();delete draft.fileBase64; }
+        draft.fileBase64=btoa(binary);draft.text="";draft.grid=[[...GRID_HEADERS[kind]]];
+      } else { const text=await file.text();draft.grid=[[...GRID_HEADERS[kind]]];pasteGrid(kind,text);draft.text="";delete draft.fileBase64; }
       draft.filename=file.name;render();
     }
   } catch(error) { message("Check the input",error.message); }
@@ -416,8 +516,13 @@ document.addEventListener("change",async event=>{
 
 document.addEventListener("paste",event=>{
   const input=event.target;
-  if(input.dataset.lineField!=="hu")return;
   const text=event.clipboardData.getData("text");
+  if(input.dataset.grid) {
+    event.preventDefault();
+    try { pasteGrid(input.dataset.grid,text,Number(input.dataset.gridRow),Number(input.dataset.gridColumn));render(); }
+    catch(error){message("Check pasted cells",error.message);}return;
+  }
+  if(input.dataset.lineField!=="hu")return;
   const hus=text.trim().split(/[\s,;]+/).filter(Boolean);
   if(hus.length<2)return;
   event.preventDefault();
@@ -428,6 +533,21 @@ document.addEventListener("paste",event=>{
   markDirty();
   if(editor.mode==="automatic")resolveEditor().catch(e=>message("Check HUs",e.message));else render();
 });
+
+document.addEventListener("keydown",event=>{
+  const input=event.target;if(!input.dataset.grid)return;
+  let row=Number(input.dataset.gridRow),col=Number(input.dataset.gridColumn);
+  if(event.key==="Enter"||event.key==="ArrowDown")row++;
+  else if(event.key==="ArrowUp")row--;
+  else if(event.key==="ArrowLeft"&&input.selectionStart===0)col--;
+  else if(event.key==="ArrowRight"&&input.selectionStart===input.value.length)col++;
+  else return;
+  if(row<0||col<0||row>50000||col>=Math.max(GRID_HEADERS[input.dataset.grid].length,...Array.from(imports[input.dataset.grid].grid,r=>r?.length||0)))return;
+  event.preventDefault();const kind=input.dataset.grid,draft=imports[kind];
+  if(row>0){draft.gridPage=Math.floor((row-1)/50);if(!draft.grid[row])draft.grid[row]=[];}
+  render();const target=$(`[data-grid="${kind}"][data-grid-row="${row}"][data-grid-column="${col}"]`);target?.focus();target?.select();
+});
+window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(state?.settings.theme==="system")applyTheme();});
 
 $("#dialog").addEventListener("cancel",()=>{if(dialogCallback){const done=dialogCallback;dialogCallback=null;done(false);}});
 window.addEventListener("beforeunload",event=>{if(dirty){event.preventDefault();event.returnValue="";}});

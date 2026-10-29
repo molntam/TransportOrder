@@ -45,8 +45,16 @@ The location directory retains the workbook origin entries and destination dropd
 
 Excel supports A4 portrait, print preview/printer selection, three direct-print copies, hidden unused rows, a regenerated date/time-based form ID and a PDF export to SharePoint. It also has a keep/clear/cancel prompt for existing non-emergency remarks.
 
-The app uses stable random form/pallet IDs, explicit completed revisions, A4 printable documents, user-selected copies and browser PDF printing. Blank unused rows are omitted. It keeps remarks on the current form and shows them in preview rather than automatically clearing them. Reprints retain the document's identity and saved revision. SharePoint export is deferred.
+The app uses stable random form/pallet IDs, explicit completed revisions, A4 direct Windows printing (one open-form copy / two final-pallet copies by default), a configurable printer and separate copy counts. Optional previews and browser PDF saving remain available from History. Blank unused rows are omitted. It keeps remarks on the current form and shows them in preview rather than automatically clearing them. Reprints retain the document's identity and saved revision. SharePoint export is deferred.
 
 ## New pallet workflow
 
 Drafts may be incomplete. Completed forms can be saved/printed onto an open pallet without a QR. Pallets can collect several compatible forms over time. Finalisation creates an immutable consolidated document with a unique-DN summary and complete HU rows. Reopening requires a reason and preserves the old revision. Removing a form is a soft removal with retained history.
+
+## UI and print refinements (0.2.0)
+
+- Destination presets exclude Building 05, Best II and Eindhoven 1; the origin directory and existing historical records are preserved.
+- The destination chooser displays building and SAP ship-to together, such as Building 21 — NL15C.
+- Final consolidated printouts omit child-form IDs in both tables and remarks. Optional 12NC and description columns are included only if at least one line contains that field.
+- Final documents contain a clearly labelled QR placeholder. The placeholder has no tracking function yet.
+- Existing copy-count settings migrate to the requested separate defaults (open 1 / final 2).

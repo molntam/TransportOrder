@@ -38,4 +38,16 @@ Pallet finalisation is the natural revision boundary for a QR capability. Reopen
 
 ### Printing and archiving
 
-Printable HTML is generated from saved snapshots and escapes all user-supplied text. Browser print/PDF output is implemented; silent printing, signature capture and SharePoint uploads are not. If archival integration is added, record archive and physical-print outcomes independently from form saving.
+Both HTML preview and native Windows printing use the same `document_model` generated from saved snapshots. Consolidated output contains no child-form IDs; entirely empty optional part/description columns are omitted. The final document includes a labelled QR placeholder, not a scannable tracking code.
+
+`native_print.py` serialises document data to a temporary JSON file and invokes a fixed Windows PowerShell command. It never interpolates document text or printer names into executable code. The bundled C# renderer uses `System.Drawing.Printing.PrintDocument` and `StandardPrintController` to submit without a browser or print dialog. A4, simplex and collated application-generated copies are used. Leaving the printer setting empty follows the current Windows default; an explicit printer name affects only that job. PDF/XPS virtual printers receive an output filename.
+
+The native renderer wraps long cells, splits oversized rows, repeats table headers and paginates remarks. The Windows-only automated test compiles and exercises this renderer into a bitmap without submitting a real print job. The remaining submission tests mock Windows, including copy counts, printer choice, duplicate request handling and error preservation. Physical printing still requires workstation acceptance.
+
+Saving/finalising commits before print submission. Failure leaves saved work available. Successful print request IDs are cached in the running app to avoid duplicate submission after a lost response. Queue submission is logged separately from the shipment state. The app does not retry failures automatically and never changes the system default printer. Signature capture and SharePoint uploads remain deferred.
+
+## Appearance and source grids
+
+Settings migrate existing workspaces to Light appearance, one open-form copy, two final-pallet copies and the live Windows default printer. Theme changes preserve printer/origin settings. CSS surface/text tokens cover both light and dark appearances; printed documents remain light.
+
+SAP cell grids accept tabular clipboard data at the focused cell, preserve identifiers as text, handle quoted multiline cells, and paginate large input datasets. Header pastes replace the grid; data-only pastes use the prefilled SAP headers. Preview/apply still goes through the same server-side validation as file imports.
