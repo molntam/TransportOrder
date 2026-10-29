@@ -1,0 +1,2856 @@
+{
+  "fromLocations": [
+    {
+      "building": "Best II",
+      "department": "Overflow/R-STO",
+      "shipTo": "WH-BESTC"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-ALSC"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AM-EL"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AMRS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AM-SS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AMWPL"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AM-WS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AMWSI"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AMWSN"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AMWST"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AO-IL"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AO-LA"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AO-LE"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AO-MF"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-AO-YS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-ATPFA"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-CABEQ"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-COCL"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-CRSMCE"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-DUVPR"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-EXEPR"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-FACAB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-FASY"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-FR-RE-USE"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LAB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LAB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LABMBI"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LBMBI"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LFMF"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LFOEL"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LFOPT"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LFSIP"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LFSP"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LFSUB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LFWS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-LHA"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-MEETK"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-MF"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-MM4"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXEC2"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXEFF"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXEIN"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXEOP"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXEPR"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXEPT"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXEPW"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXERS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXESQ"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXETO"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXETR"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-NXSUB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-OPT"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-Other"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-PELLI"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-PPA4"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-REQP"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-RES"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-REUSE"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-SERLB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-SIP"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-SLAB4"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-SLAB5"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-SP"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-SUB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-SUBS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-T05C"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-TEST4"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-TESY"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-TLCAB"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-UNLCK"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-WHMOD"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-WS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-WSNSU"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE4-YS"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CLE5-DESK 5L"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CP04"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "CRS MCE"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "Meetkamer"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4 Work Center",
+      "shipTo": "PROCLAB4"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A01"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A02"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A03"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A04"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A05"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A06"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A07"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A08"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A09"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A10"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A11"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A12"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A13"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A14"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A15"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A16"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A17"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A18"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A19"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A20"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A21"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A22"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A23"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A24"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A25"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4A26"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4B20"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4B21"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4B22"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4B23"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4B24"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4B25"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4B26"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4D0571"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E01"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E02"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E03"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E04"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E05"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E06"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E07"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E08"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E09"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E10"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E11"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E12"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4E18"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G01"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G02"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G03"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G04"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G05"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G06"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G07"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G08"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G09"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G10"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G11"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G12"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G13"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G14"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G15"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G16"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G17"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G18"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G19"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G20"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G21"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G22"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G23"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G24"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G25"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G26"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G27"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G28"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G29"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G30"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G31"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G32"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G33"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G34"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G35"
+    },
+    {
+      "building": "Building 04",
+      "department": "Building 4: CLE4-CABIN",
+      "shipTo": "CB 4G36"
+    },
+    {
+      "building": "Building 05",
+      "department": "Tool Request",
+      "shipTo": "B5L-TR"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building",
+      "shipTo": "NL-B5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Desk",
+      "shipTo": "B5L-TC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Desk",
+      "shipTo": "Desk 5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "B5L-PP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "BL5-MICC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEBT"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXECA"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEFA"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEIL"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEMF"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEMM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEPO"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEPP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXESC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXETT"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEVC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-NXEWS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-SLAB5"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE4-T05C"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-5L-PP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-5MICC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-DESK 5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEBM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEBQ"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEC2"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEFA"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEHU"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEIL"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEMF"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEOM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEOQ"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEPA"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEPO"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEPP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXERS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXESB"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXESF"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXESQ"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXETQ"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXETR"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEUP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEVC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEVQ"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-EXEWS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-MH"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEBT"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEFA"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEIL"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEMF"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEMM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEPO"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEPP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXESC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXETT"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEVC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-NXEWS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "CLE5-VC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5 Work Center",
+      "shipTo": "PP-5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B01"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B02"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B03"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B04"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B05"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B06"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B07"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B08"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B09"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B10"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B11"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B12"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B13"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B14"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B15"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B16"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B17"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B18"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B19"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B20"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B21"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B22"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B23"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B24"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B25"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B26"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B27"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5B28"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C01"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C02"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C03"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C04"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C05"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C06"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C07"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5C08"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D01"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D02"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D03"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D04"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D05"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D06"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D07"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D08"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D09"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D10"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D11"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D12"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D13"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D14"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D15"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D16"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D17"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D18"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D19"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5D20"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H01"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H02"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H03"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H04"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H05"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H06"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H07"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H08"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H09"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H10"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H11"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H12"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H13"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5H14"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5J01"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5J02"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5J03"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5J04"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5J05"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "CB 5J06"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building 5: CLE5-CABIN",
+      "shipTo": "Desk 5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Clean Pack",
+      "shipTo": "B5L-CP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Cleanroom Services",
+      "shipTo": "B5L-CRS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Desk5L",
+      "shipTo": "B5L-DESK"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Inbound",
+      "shipTo": "B5L - DHL Inbound (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Picking",
+      "shipTo": "B5L - DHL Picking (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Shipping",
+      "shipTo": "B5L - DHL Shipping (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Stock Control",
+      "shipTo": "B5L - DHL Stock Control (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL Consumables Inbound",
+      "shipTo": "B5L-DHLCON"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL Consumables Picking",
+      "shipTo": "B5L-DHL-OB"
+    },
+    {
+      "building": "Building 05",
+      "department": "Issue",
+      "shipTo": "B5L-ISSUE"
+    },
+    {
+      "building": "Building 05",
+      "department": "Material Intake Contamination & Cleaning",
+      "shipTo": "B5L-MICC"
+    },
+    {
+      "building": "Building 05",
+      "department": "New Product Introduction",
+      "shipTo": "B5L-NPI"
+    },
+    {
+      "building": "Building 05",
+      "department": "Optics",
+      "shipTo": "B5L-OPTICS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack",
+      "shipTo": "B5L-PACK"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack First Line Support",
+      "shipTo": "B5L-PCKFLS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack Moveable Racking",
+      "shipTo": "B5L-PACKMR"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack Small",
+      "shipTo": "B5L-PACKSM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack XL",
+      "shipTo": "B5L-PACKXL"
+    },
+    {
+      "building": "Building 05",
+      "department": "Production Planning",
+      "shipTo": "CLE5-PP5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Quality Control",
+      "shipTo": "B5L-QCTR"
+    },
+    {
+      "building": "Building 05",
+      "department": "Quality Inspection",
+      "shipTo": "B5L-QI"
+    },
+    {
+      "building": "Building 05",
+      "department": "Return to Manufacturer (RTM)",
+      "shipTo": "B5L-RTM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Reverse Logistics",
+      "shipTo": "B5L-RL"
+    },
+    {
+      "building": "Building 05",
+      "department": "Scrap",
+      "shipTo": "B5L-SCRAP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Tool Cabin",
+      "shipTo": "B5L-TC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Tool Registration",
+      "shipTo": "B5L-REGT"
+    },
+    {
+      "building": "Building 05",
+      "department": "Vendor managed inventory",
+      "shipTo": "B5L-VMI"
+    },
+    {
+      "building": "Building 05",
+      "department": "Warehouse First Line Support",
+      "shipTo": "B5L-WFLS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Warehouse Operation Support",
+      "shipTo": "B5L-WHOPS"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Desk",
+      "shipTo": "Desk 9"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Work Center",
+      "shipTo": "CLE4-SLAB9"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Work Center",
+      "shipTo": "CLE9-ATPFA"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Work Center",
+      "shipTo": "CLE9-MH"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Work Center",
+      "shipTo": "CLE9-PMO9"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Work Center",
+      "shipTo": "CLE9-TEST"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Work Center",
+      "shipTo": "CLE9-TLCAB"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9 Work Center",
+      "shipTo": "PROCLAB9"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B01"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B02"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B03"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B04"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B05"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B06"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B07"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B08"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B09"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B10"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B11"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B12"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B13"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B14"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B15"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B16"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B17"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B18"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B19"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B20"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B21"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B22"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B23"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B24"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B25"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B26"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B27"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B28"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B29"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B30"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B31"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B32"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B33"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B34"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B35"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B36"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "CB 9B37"
+    },
+    {
+      "building": "Building 9",
+      "department": "Building 9: CLE9-CABIN",
+      "shipTo": "Desk 9"
+    },
+    {
+      "building": "Building 9",
+      "department": "D&E/Chemicals/Other",
+      "shipTo": "DESK9C"
+    },
+    {
+      "building": "Building 17",
+      "department": "Building 17 Desk",
+      "shipTo": "Desk 17"
+    },
+    {
+      "building": "Building 17",
+      "department": "Motion",
+      "shipTo": "B17-MOTION"
+    },
+    {
+      "building": "Building 21",
+      "department": "Motion",
+      "shipTo": "B21-MOASSY"
+    },
+    {
+      "building": "Building 21",
+      "department": "Bld21 Inbound",
+      "shipTo": "WH-BLD21C"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Desk",
+      "shipTo": "Desk 21"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CLE21-CABN"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CLE21-LEGA"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CLE21-MEBQ"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CLE21-MEOP"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CLE21-NXEQ"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CLE21-T21A"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CLE21-YSIO"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CP21"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CP21-COM"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CP21-MOV"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CP21-PRE"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CP21-SERV"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "CP21-TLS"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21 Work Center",
+      "shipTo": "PMO21"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B01"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B02"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B03"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B04"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B05"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B06"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B07"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B08"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B09"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B10"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B11"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B12"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B13"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B14"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B15"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B16"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B17"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B18"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B21"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B22"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B23"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B24"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B25"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B26"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B27"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B28"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B31"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B32"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B33"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B34"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B35"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B36"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B40"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B41"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B42"
+    },
+    {
+      "building": "Building 21",
+      "department": "Building 21: CLE21-CABN",
+      "shipTo": "CB 21B43"
+    },
+    {
+      "building": "Building 21",
+      "department": "Consumables",
+      "shipTo": "B21-PACKBC"
+    },
+    {
+      "building": "Building 21",
+      "department": "Factory supply",
+      "shipTo": "CLE21-CABN"
+    },
+    {
+      "building": "Building 21",
+      "department": "Field Service Hub",
+      "shipTo": "NL15C"
+    },
+    {
+      "building": "Building 21",
+      "department": "Mature Products & Services",
+      "shipTo": "CLE21-MPSC"
+    },
+    {
+      "building": "Building 21",
+      "department": "Toolcabin",
+      "shipTo": "CLE21-T21A"
+    },
+    {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MOASSY"
+    },
+    {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MO-LSM"
+    },
+    {
+      "building": "Building 58",
+      "department": "Building 58 Desk",
+      "shipTo": "Desk 58"
+    },
+    {
+      "building": "Building 58",
+      "department": "Scrap",
+      "shipTo": "BLD58-SCRP"
+    },
+    {
+      "building": "Building 58",
+      "department": "Supply/Consumables",
+      "shipTo": "BLD58C"
+    },
+    {
+      "building": "Eindhoven 1",
+      "department": "Overflow/R-STO",
+      "shipTo": "WH-EHV1C"
+    },
+    {
+      "building": "HQ Pack",
+      "department": "Return to Manufacturer (RTM)",
+      "shipTo": "B5L-RTMC"
+    },
+    {
+      "building": "Weert 1",
+      "department": "Reverse Logistics / Re-use parts",
+      "shipTo": "WH-WEERTC"
+    },
+    {
+      "building": "Weert 2",
+      "department": "ASML Trading BV Parts",
+      "shipTo": "NL05C"
+    },
+    {
+      "building": "Weert 2",
+      "department": "Service Warehouse",
+      "shipTo": "NL10C"
+    },
+    {
+      "building": "Weert 2",
+      "department": "Toolcabin",
+      "shipTo": "DHL.TOOLSC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Delivery Ops",
+      "shipTo": "B5L - Delivery Ops"
+    }
+  ],
+  "toLocations": [
+    {
+      "building": "Best II",
+      "department": "Overflow/R-STO",
+      "shipTo": "WH-BESTC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Tool Request",
+      "shipTo": "B5L-TR"
+    },
+    {
+      "building": "Building 05",
+      "department": "Building",
+      "shipTo": "NL-B5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Clean Pack",
+      "shipTo": "B5L-CP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Cleanroom Services",
+      "shipTo": "B5L-CRS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Desk5L",
+      "shipTo": "B5L-DESK"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Inbound",
+      "shipTo": "B5L - DHL Inbound (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Picking",
+      "shipTo": "B5L - DHL Picking (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Shipping",
+      "shipTo": "B5L - DHL Shipping (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL - Stock Control",
+      "shipTo": "B5L - DHL Stock Control (No SAP ship to)"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL Consumables Inbound",
+      "shipTo": "B5L-DHLCON"
+    },
+    {
+      "building": "Building 05",
+      "department": "DHL Consumables Picking",
+      "shipTo": "B5L-DHL-OB"
+    },
+    {
+      "building": "Building 05",
+      "department": "Issue",
+      "shipTo": "B5L-ISSUE"
+    },
+    {
+      "building": "Building 05",
+      "department": "Material Intake Contamination & Cleaning",
+      "shipTo": "B5L-MICC"
+    },
+    {
+      "building": "Building 05",
+      "department": "New Product Introduction",
+      "shipTo": "B5L-NPI"
+    },
+    {
+      "building": "Building 05",
+      "department": "Optics",
+      "shipTo": "B5L-OPTICS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack",
+      "shipTo": "B5L-PACK"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack First Line Support",
+      "shipTo": "B5L-PCKFLS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack Moveable Racking",
+      "shipTo": "B5L-PACKMR"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack Small",
+      "shipTo": "B5L-PACKSM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Pack XL",
+      "shipTo": "B5L-PACKXL"
+    },
+    {
+      "building": "Building 05",
+      "department": "Production Planning",
+      "shipTo": "CLE5-PP5L"
+    },
+    {
+      "building": "Building 05",
+      "department": "Quality Control",
+      "shipTo": "B5L-QCTR"
+    },
+    {
+      "building": "Building 05",
+      "department": "Quality Inspection",
+      "shipTo": "B5L-QI"
+    },
+    {
+      "building": "Building 05",
+      "department": "Return to Manufacturer (RTM)",
+      "shipTo": "B5L-RTM"
+    },
+    {
+      "building": "Building 05",
+      "department": "Reverse Logistics",
+      "shipTo": "B5L-RL"
+    },
+    {
+      "building": "Building 05",
+      "department": "Scrap",
+      "shipTo": "B5L-SCRAP"
+    },
+    {
+      "building": "Building 05",
+      "department": "Tool Cabin",
+      "shipTo": "B5L-TC"
+    },
+    {
+      "building": "Building 05",
+      "department": "Tool Registration",
+      "shipTo": "B5L-REGT"
+    },
+    {
+      "building": "Building 05",
+      "department": "Vendor managed inventory",
+      "shipTo": "B5L-VMI"
+    },
+    {
+      "building": "Building 05",
+      "department": "Warehouse First Line Support",
+      "shipTo": "B5L-WFLS"
+    },
+    {
+      "building": "Building 05",
+      "department": "Warehouse Operation Support",
+      "shipTo": "B5L-WHOPS"
+    },
+    {
+      "building": "Building 17",
+      "department": "Motion",
+      "shipTo": "B17-MOTION"
+    },
+    {
+      "building": "Building 21",
+      "department": "Motion",
+      "shipTo": "B21-MOASSY"
+    },
+    {
+      "building": "Building 21",
+      "department": "Bld21 Inbound",
+      "shipTo": "WH-BLD21C"
+    },
+    {
+      "building": "Building 21",
+      "department": "Consumables",
+      "shipTo": "B21-PACKBC"
+    },
+    {
+      "building": "Building 21",
+      "department": "Factory supply",
+      "shipTo": "CLE21-CABN"
+    },
+    {
+      "building": "Building 21",
+      "department": "Field Service Hub",
+      "shipTo": "NL15C"
+    },
+    {
+      "building": "Building 21",
+      "department": "Mature Products & Services",
+      "shipTo": "CLE21-MPSC"
+    },
+    {
+      "building": "Building 21",
+      "department": "Toolcabin",
+      "shipTo": "CLE21-T21A"
+    },
+    {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MOASSY"
+    },
+    {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MO-LSM"
+    },
+    {
+      "building": "Building 58",
+      "department": "Scrap",
+      "shipTo": "BLD58-SCRP"
+    },
+    {
+      "building": "Building 58",
+      "department": "Supply/Consumables",
+      "shipTo": "BLD58C"
+    },
+    {
+      "building": "Building 9",
+      "department": "D&E/Chemicals/Other",
+      "shipTo": "DESK9C"
+    },
+    {
+      "building": "Eindhoven 1",
+      "department": "Overflow/R-STO",
+      "shipTo": "WH-EHV1C"
+    },
+    {
+      "building": "HQ Pack",
+      "department": "Return to Manufacturer (RTM)",
+      "shipTo": "B5L-RTMC"
+    },
+    {
+      "building": "Weert 1",
+      "department": "Reverse Logistics / Re-use parts",
+      "shipTo": "WH-WEERTC"
+    },
+    {
+      "building": "Weert 2",
+      "department": "Service Warehouse",
+      "shipTo": "NL10C"
+    },
+    {
+      "building": "Weert 1A",
+      "department": "Reverse Logistics / Re-use parts",
+      "shipTo": "WH-WEERT1A"
+    },
+    {
+      "building": "Weert 1A",
+      "department": "SCRAP",
+      "shipTo": "WEERT1A SCRAP"
+    },
+    {
+      "building": "Weert 1B",
+      "department": "Replenishment Hub",
+      "shipTo": "WH-WEERT1B"
+    },
+    {
+      "building": "WH-DC8",
+      "department": "DC8",
+      "shipTo": "DC8 - ASML"
+    },
+    {
+      "building": "WH-DC8",
+      "department": "DEFA TOOLS",
+      "shipTo": "DC8 DEFA TOOLS"
+    },
+    {
+      "building": "B23-DEC",
+      "department": "Cleanroom",
+      "shipTo": "BIC1 - BLD23"
+    },
+    {
+      "building": "WH21-MPS",
+      "department": "Silver Forum",
+      "shipTo": "Bld. 21 MPS"
+    },
+    {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MOTION"
+    },
+    {
+      "building": "Weert 2",
+      "department": "KEYSIGHT",
+      "shipTo": "KEYSIGHT"
+    },
+    {
+      "building": "Weert 2",
+      "department": "FOR PWO",
+      "shipTo": "Tools Department",
+      "sourceCode": "DHL.TOOLSC"
+    },
+    {
+      "building": "Weert 2",
+      "department": "ASML Service Operations",
+      "shipTo": "NL05C",
+      "label": "NL05 Weert"
+    },
+    {
+      "building": "B23 - BIC1",
+      "department": "ASML Trading BV parts",
+      "shipTo": "NL05C",
+      "label": "NL05 Eindhoven / BIC"
+    }
+  ],
+  "automatic": {
+    "WH-BESTC": {
+      "building": "Best II",
+      "department": "Overflow/R-STO",
+      "shipTo": "WH-BESTC"
+    },
+    "B5L-TR": {
+      "building": "Building 05",
+      "department": "Tool Request",
+      "shipTo": "B5L-TR"
+    },
+    "NL-B5L": {
+      "building": "Building 05",
+      "department": "Building",
+      "shipTo": "NL-B5L"
+    },
+    "B5L-CP": {
+      "building": "Building 05",
+      "department": "Clean Pack",
+      "shipTo": "B5L-CP"
+    },
+    "B5L-CRS": {
+      "building": "Building 05",
+      "department": "Cleanroom Services",
+      "shipTo": "B5L-CRS"
+    },
+    "B5L-DESK": {
+      "building": "Building 05",
+      "department": "Desk5L",
+      "shipTo": "B5L-DESK"
+    },
+    "B5L - DHL Inbound (No SAP ship to)": {
+      "building": "Building 05",
+      "department": "DHL - Inbound",
+      "shipTo": "B5L - DHL Inbound (No SAP ship to)"
+    },
+    "B5L - DHL Picking (No SAP ship to)": {
+      "building": "Building 05",
+      "department": "DHL - Picking",
+      "shipTo": "B5L - DHL Picking (No SAP ship to)"
+    },
+    "B5L - DHL Shipping (No SAP ship to)": {
+      "building": "Building 05",
+      "department": "DHL - Shipping",
+      "shipTo": "B5L - DHL Shipping (No SAP ship to)"
+    },
+    "B5L - DHL Stock Control (No SAP ship to)": {
+      "building": "Building 05",
+      "department": "DHL - Stock Control",
+      "shipTo": "B5L - DHL Stock Control (No SAP ship to)"
+    },
+    "B5L-DHLCON": {
+      "building": "Building 05",
+      "department": "DHL Consumables Inbound",
+      "shipTo": "B5L-DHLCON"
+    },
+    "B5L-DHL-OB": {
+      "building": "Building 05",
+      "department": "DHL Consumables Picking",
+      "shipTo": "B5L-DHL-OB"
+    },
+    "B5L-ISSUE": {
+      "building": "Building 05",
+      "department": "Issue",
+      "shipTo": "B5L-ISSUE"
+    },
+    "B5L-MICC": {
+      "building": "Building 05",
+      "department": "Material Intake Contamination & Cleaning",
+      "shipTo": "B5L-MICC"
+    },
+    "B5L-NPI": {
+      "building": "Building 05",
+      "department": "New Product Introduction",
+      "shipTo": "B5L-NPI"
+    },
+    "B5L-OPTICS": {
+      "building": "Building 05",
+      "department": "Optics",
+      "shipTo": "B5L-OPTICS"
+    },
+    "B5L-PACK": {
+      "building": "Building 05",
+      "department": "Pack",
+      "shipTo": "B5L-PACK"
+    },
+    "B5L-PCKFLS": {
+      "building": "Building 05",
+      "department": "Pack First Line Support",
+      "shipTo": "B5L-PCKFLS"
+    },
+    "B5L-PACKMR": {
+      "building": "Building 05",
+      "department": "Pack Moveable Racking",
+      "shipTo": "B5L-PACKMR"
+    },
+    "B5L-PACKSM": {
+      "building": "Building 05",
+      "department": "Pack Small",
+      "shipTo": "B5L-PACKSM"
+    },
+    "B5L-PACKXL": {
+      "building": "Building 05",
+      "department": "Pack XL",
+      "shipTo": "B5L-PACKXL"
+    },
+    "CLE5-PP5L": {
+      "building": "Building 05",
+      "department": "Production Planning",
+      "shipTo": "CLE5-PP5L"
+    },
+    "B5L-QCTR": {
+      "building": "Building 05",
+      "department": "Quality Control",
+      "shipTo": "B5L-QCTR"
+    },
+    "B5L-QI": {
+      "building": "Building 05",
+      "department": "Quality Inspection",
+      "shipTo": "B5L-QI"
+    },
+    "B5L-RTM": {
+      "building": "Building 05",
+      "department": "Return to Manufacturer (RTM)",
+      "shipTo": "B5L-RTM"
+    },
+    "B5L-RL": {
+      "building": "Building 05",
+      "department": "Reverse Logistics",
+      "shipTo": "B5L-RL"
+    },
+    "B5L-SCRAP": {
+      "building": "Building 05",
+      "department": "Scrap",
+      "shipTo": "B5L-SCRAP"
+    },
+    "B5L-TC": {
+      "building": "Building 05",
+      "department": "Tool Cabin",
+      "shipTo": "B5L-TC"
+    },
+    "B5L-REGT": {
+      "building": "Building 05",
+      "department": "Tool Registration",
+      "shipTo": "B5L-REGT"
+    },
+    "B5L-VMI": {
+      "building": "Building 05",
+      "department": "Vendor managed inventory",
+      "shipTo": "B5L-VMI"
+    },
+    "B5L-WFLS": {
+      "building": "Building 05",
+      "department": "Warehouse First Line Support",
+      "shipTo": "B5L-WFLS"
+    },
+    "B5L-WHOPS": {
+      "building": "Building 05",
+      "department": "Warehouse Operation Support",
+      "shipTo": "B5L-WHOPS"
+    },
+    "B17-MOTION": {
+      "building": "Building 17",
+      "department": "Motion",
+      "shipTo": "B17-MOTION"
+    },
+    "B21-MOASSY": {
+      "building": "Building 21",
+      "department": "Motion",
+      "shipTo": "B21-MOASSY"
+    },
+    "WH-BLD21C": {
+      "building": "Building 21",
+      "department": "Bld21 Inbound",
+      "shipTo": "WH-BLD21C"
+    },
+    "B21-PACKBC": {
+      "building": "Building 21",
+      "department": "Consumables",
+      "shipTo": "B21-PACKBC"
+    },
+    "CLE21-CABN": {
+      "building": "Building 21",
+      "department": "Factory supply",
+      "shipTo": "CLE21-CABN"
+    },
+    "NL15C": {
+      "building": "Building 21",
+      "department": "Field Service Hub",
+      "shipTo": "NL15C"
+    },
+    "CLE21-MPSC": {
+      "building": "Building 21",
+      "department": "Mature Products & Services",
+      "shipTo": "CLE21-MPSC"
+    },
+    "CLE21-T21A": {
+      "building": "Building 21",
+      "department": "Toolcabin",
+      "shipTo": "CLE21-T21A"
+    },
+    "B30-MOASSY": {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MOASSY"
+    },
+    "B30-MO-LSM": {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MO-LSM"
+    },
+    "BLD58-SCRP": {
+      "building": "Building 58",
+      "department": "Scrap",
+      "shipTo": "BLD58-SCRP"
+    },
+    "BLD58C": {
+      "building": "Building 58",
+      "department": "Supply/Consumables",
+      "shipTo": "BLD58C"
+    },
+    "DESK9C": {
+      "building": "Building 9",
+      "department": "D&E/Chemicals/Other",
+      "shipTo": "DESK9C"
+    },
+    "WH-EHV1C": {
+      "building": "Eindhoven 1",
+      "department": "Overflow/R-STO",
+      "shipTo": "WH-EHV1C"
+    },
+    "B5L-RTMC": {
+      "building": "HQ Pack",
+      "department": "Return to Manufacturer (RTM)",
+      "shipTo": "B5L-RTMC"
+    },
+    "WH-WEERTC": {
+      "building": "Weert 1",
+      "department": "Reverse Logistics / Re-use parts",
+      "shipTo": "WH-WEERTC"
+    },
+    "NL10C": {
+      "building": "Weert 2",
+      "department": "Service Warehouse",
+      "shipTo": "NL10C"
+    },
+    "DHL.TOOLSC": {
+      "building": "Weert 2",
+      "department": "FOR PWO",
+      "shipTo": "Tools Department"
+    },
+    "WH-WEERT1A": {
+      "building": "Weert 1A",
+      "department": "Reverse Logistics / Re-use parts",
+      "shipTo": "WH-WEERT1A"
+    },
+    "WEERT1A SCRAP": {
+      "building": "Weert 1A",
+      "department": "SCRAP",
+      "shipTo": "WEERT1A SCRAP"
+    },
+    "WH-WEERT1B": {
+      "building": "Weert 1B",
+      "department": "Replenishment Hub",
+      "shipTo": "WH-WEERT1B"
+    },
+    "DC8 - ASML": {
+      "building": "WH-DC8",
+      "department": "DC8",
+      "shipTo": "DC8 - ASML"
+    },
+    "DC8 DEFA TOOLS": {
+      "building": "WH-DC8",
+      "department": "DEFA TOOLS",
+      "shipTo": "DC8 DEFA TOOLS"
+    },
+    "BIC1 - BLD23": {
+      "building": "B23-DEC",
+      "department": "Cleanroom",
+      "shipTo": "BIC1 - BLD23"
+    },
+    "Bld. 21 MPS": {
+      "building": "WH21-MPS",
+      "department": "Silver Forum",
+      "shipTo": "Bld. 21 MPS"
+    },
+    "B30-MOTION": {
+      "building": "Building 30",
+      "department": "Motion",
+      "shipTo": "B30-MOTION"
+    },
+    "KEYSIGHT": {
+      "building": "Weert 2",
+      "department": "KEYSIGHT",
+      "shipTo": "KEYSIGHT"
+    },
+    "WH-DC8C": {
+      "building": "WH-DC8",
+      "department": "WH-DC8",
+      "shipTo": "WH-DC8"
+    },
+    "B23-DEC": {
+      "building": "B23-DEC",
+      "department": "Cleanroom",
+      "shipTo": "BIC1 - BLD23"
+    },
+    "WH21-MPSC": {
+      "building": "WH21-MPS",
+      "department": "Silver Forum",
+      "shipTo": "Bld. 21 MPS"
+    }
+  }
+}

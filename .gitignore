@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.DS_Store
+local-data/
+node_modules/
+test-results/
+*.xlsx
+*.XLSX
+*.xlsm
+*.log
