@@ -84,14 +84,14 @@ async function main() {
   assert.equal(execute("resolveResult.valid"),true);
   await execute('saveForm("keep_open")');
   assert.equal(execute("state.forms.length"),1);
-  assert.ok(execute("selectedPallet"));
+  assert.equal(execute("selectedPallet"),null);
   assert.equal(printRequests.length,1);
   assert.equal(printRequests[0].kind,"form");
   assert.equal(document.elements.get("dialog").open,false);
   await execute('openPreview({kind:"form",id:state.forms[0].id,revision:1})');
   assert.match(document.elements.get("print-frame").srcdoc,/Keep this note/);
 
-  execute('editor.lines=[{...emptyLine(),hu:"DEMO-HU-002"}]');
+  execute('selectedPallet=state.pallets[0].id;editor=newEditor();editor.lines=[{...emptyLine(),hu:"DEMO-HU-002"}]');
   await execute("resolveEditor()");
   assert.equal(execute("editor.automaticEmergency"),true);
   await execute('saveForm("finalise")');
@@ -147,6 +147,15 @@ async function main() {
   assert.match(execute('palletContents(palletForms(state.pallets[0].id))'),/DEMO-DN-01/);
   assert.match(execute('renderPresets("Building 21")'),/WH21/);
   assert.match(execute('renderPresets("Weert 2")'),/Key sight/);
+  assert.doesNotMatch(execute('renderCreate()'),/class="stats"/);
+  assert.match(execute('renderHistory()'),/class="stats"/);
+  assert.equal(execute('unexpectedRemarks({destination:{building:"Building 17",shipTo:"B17-MOTION"},remarks:"KEYSIGHT Tech."}).length'),1);
+  assert.equal(execute('unexpectedRemarks({destination:{building:"Weert 2",shipTo:"KEYSIGHT"},remarks:"KEYSIGHT Tech."}).length'),0);
+  assert.equal(execute('unexpectedRemarks({automaticEmergency:true,remarks:"EMERGENCY\\nOld instructions"}).length'),1);
+  execute('palletSearch="DEMO-HU-001"');
+  assert.match(execute('renderPalletPanel()'),/Building 21 — B21-MOASSY/);
+  assert.match(execute('renderInfeed()'),/>Internals</);
+  assert.match(execute('renderInfeed()'),/expand-source/);
   console.log("UI smoke passed: all five views, imports, HU resolution, quantity sum, two-form consolidation, direct-print requests, themes, editable cell paste, filtered destinations, reopening, conflicts and manual entry.");
   console.log("This is a DOM-shell/API integration check, native submission is mocked; this is not a physical-printer test.");
 }

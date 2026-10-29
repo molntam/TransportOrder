@@ -106,3 +106,11 @@ The UI layout takes inspiration from [Cargix TMS](https://dribbble.com/shots/268
 - Pallet details immediately shows DN/HU/quantity rows.
 - QR placeholders are top-right in the header; building names are larger and bold. Single-delivery final documents are titled Transport order.
 - WH21-MPSC is grouped under Building 21; Weert 2 includes Key sight.
+
+## Changes in 0.4.0
+
+Summary cards are in History, keeping order processing focused. Open pallets display building and ship-to together and can be searched by destination, DN or HU. Completing a form parks its pallet without automatically selecting it; select a parked pallet explicitly to add more forms.
+
+Before completing/printing, free-text remarks require Keep/Cancel confirmation. Exact Emergency notes are exempt when Emergency applies, and exact Keysight notes only when the current destination is Keysight. Cancelling retains the editor for correction. Empty optional part/description columns are omitted from individual orders as well as consolidations.
+
+Data infeed presents Internals and Quantities side by side, with an Expand/Collapse control on each. Narrow screens stack the tables.

@@ -47,6 +47,11 @@ class DocumentTests(unittest.TestCase):
         model = document_model(self.state, "pallet", saved["palletId"], 1)
         self.assertEqual([c["key"] for c in model["columns"]], ["qty", "hu", "dn"])
 
+    def test_individual_order_omits_empty_optional_columns(self):
+        saved=apply_action(self.state,"save_form",form())
+        model=document_model(self.state,"form",saved["formId"],1)
+        self.assertEqual([c["key"] for c in model["columns"]],["qty","hu","dn"])
+
     def test_nonempty_optional_column_is_retained(self):
         saved = apply_action(self.state, "save_form", form(intent="finalise", lines=[{"hu":"HU1", "description":"Tools"}]))
         model = document_model(self.state, "pallet", saved["palletId"], 1)

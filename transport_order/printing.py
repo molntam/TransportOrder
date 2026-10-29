@@ -34,7 +34,7 @@ def document_model(state, kind, record_id, revision):
     columns = [{"key": key, "label": label, "weight": weight} for key, label, weight in
                [("part", "12NC / Part nr.", 1.2), ("description", "Description", 2.2),
                 ("qty", "Qty", .6), ("hu", "HU", 1.3), ("dn", "DN", 1.3)]
-               if kind == "form" or key not in ("part", "description") or any(line.get(key, "").strip() for line in lines)]
+               if key not in ("part", "description") or any(line.get(key, "").strip() for line in lines)]
     summary = defaultdict(lambda: {"hus": set(), "qty": Decimal(0)})
     if kind == "pallet":
         for line in lines:
