@@ -63,7 +63,7 @@ Appearance can be changed in Settings (Light, Dark, Follow system), or toggled f
 
 Data is saved outside the repository in **`~/TransportOrderData`** (`%USERPROFILE%\TransportOrderData` on Windows). The main file is `transport-order.json`; the previous successful state is `transport-order.previous.json`. Closing the browser does not delete saved work. One application process can open a data folder at a time. Multiple browser windows share that process, with revision checks preventing overwrites.
 
-**This version is a local, single-workstation prototype.** Loading manifests, pallet QRs and the driver loading screen work in this local workspace. Driver phones, shared storage, SharePoint PDF uploads and Spotfire automation are not connected. The app does not notify another workstation. Preparer and driver names are local labels, not verified sign-in.
+**This version is a local, single-workstation prototype.** Loading manifests, pallet QRs and the driver loading screen work in this local workspace. A separate public driver website is available in `driver-site`; see [Driver website](docs/DRIVER_SITE.md). Publishing local manifests to the shared backend remains the next integration step. Shared desktop storage, SharePoint PDF uploads and Spotfire automation are not connected. The app does not notify another workstation. Preparer and driver names are local labels, not verified sign-in.
 
 Part numbers and descriptions remain manual because the two current SAP exports do not contain them. One automatic row represents an HU's aggregate quantity; it does not invent item-level material details. A form supports up to 500 rows. Each input supports up to 50,000 source records.
 

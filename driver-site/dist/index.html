@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000066">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://cwwpuapvgwoelhpwserm.supabase.co; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>TransportOrder · Driver shipment</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./jsQR.js" defer></script>
+  <script src="./app.mjs" type="module"></script>
+</head>
+<body>
+  <div id="demo-banner" hidden></div>
+  <header class="topbar"><a class="brand" href="./" aria-label="TransportOrder home"><span class="brand-mark">TO<span></span></span><span>Transport<span class="brand-light">Order</span><small>DELIVERY OPERATIONS</small></span></a><div class="header-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Shipment access</div></header>
+  <main id="app" aria-busy="true"><section class="empty-state"><div class="loader" aria-hidden="true"></div><h1>Opening your shipment</h1><p>Checking the latest loading status…</p></section></main>
+  <footer class="site-footer"><span>TransportOrder</span><span>Delivery Operations · Netherlands</span></footer>
+  <dialog id="scanner" aria-labelledby="scanner-title"></dialog>
+  <dialog id="confirmation" aria-labelledby="confirmation-title"></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

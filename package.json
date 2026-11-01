@@ -2,7 +2,8 @@
   "name": "transport-order-checks",
   "private": true,
   "scripts": {
-    "test:database": "node tests/database.cjs"
+    "test:database": "node tests/database.cjs",
+    "test:driver": "node --check driver-site/dist/app.mjs && node tests/driver-site.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.4.6"

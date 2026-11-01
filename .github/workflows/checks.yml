@@ -29,6 +29,7 @@ jobs:
           node-version: '22'
       - run: node --check transport_order/web/app.js
       - run: node tests/ui-smoke.cjs
+      - run: npm run test:driver
 
   database:
     runs-on: ubuntu-latest
