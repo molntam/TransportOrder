@@ -380,3 +380,6 @@ input[readonly] { background:var(--surface-subtle); color:var(--ink); border:1px
 #scan-feedback { margin-top:16px; }
 @media(max-width:1200px) { .dock-row { grid-template-columns:1fr 1fr; } }
 @media(max-width:900px) { .loading-layout,.scanner-layout { grid-template-columns:1fr; } .dock-reminder { margin:12px;flex-wrap:wrap; } }
+
+.sidebar { overflow-y:auto; }
+.sidebar > * { flex-shrink:0; }
