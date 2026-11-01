@@ -42,6 +42,7 @@ const emptyLine = () => ({part:"",description:"",qty:"",hu:"",dn:""});
 const activeForms = palletId => state.forms.filter(f => !f.removedAt && (!palletId || f.palletId === palletId));
 const palletForms = id => state.forms.filter(f => f.palletId === id && !f.removedAt);
 const counts = forms => ({hus:new Set(forms.flatMap(f=>f.lines.map(l=>l.hu).filter(Boolean))).size, dns:new Set(forms.flatMap(f=>f.lines.map(l=>l.dn).filter(Boolean))).size});
+const palletStatus = p => p.collectedAt?"Collected":reservedPalletIds().has(p.id)?"On loading manifest":p.status;
 const statusPill = (status, removed=false) => `<span class="pill ${removed ? "removed" : status === "open" ? "open" : status === "draft" ? "draft" : ""}">${removed ? "Removed" : ({open:"Open pallet",finalised:"Ready for pick-up",draft:"Draft",complete:"Complete"}[status] || esc(status))}</span>`;
 
 let token = new URLSearchParams(location.hash.slice(1)).get("session") || sessionStorage.getItem("transport-order.token") || "";
@@ -50,6 +51,7 @@ if (location.hash.includes("session=")) history.replaceState(null, "", "/");
 let state, directory, diagnostics, providers, view = "create", selectedPallet = null, editor, dirty = false, busy = false;
 let originExpanded = false, receiverExpanded = false, bulkExpanded = false, resolving = 0, resolveResult = null;
 let palletSearch="",expandedSource=null;
+let selectedLoad=null,dockDraft=null,cameraStream=null,cameraRun=0,scanBusy=false,driverDraft="",vehicleDraft="";
 let filter = "all", historyTab = "forms", search = "", dialogCallback = null, previewDocument = null;
 const GRID_HEADERS = {
   shipto:["Outbound Delivery Order","ERP Document","Handling Unit","Number of Items","Ship-To","Storage Bin","Number of Handling Units","Shipping Condition","Changed On","Changed At","Storage Type","External Delivery ID"],
@@ -144,7 +146,7 @@ async function loadState() {
 
 function updateShell() {
   applyTheme();
-  const items = [["create","form","Create order"],["infeed","database","Data infeed"],["open-orders","truck","Open orders"],["pallets","box","Pallets"],["history","history","History"],["settings","settings","Settings"]];
+  const items = [["create","form","Create order"],["infeed","database","Data infeed"],["open-orders","truck","Open orders"],["pallets","box","Pallets"],["loads","truck","Truck loading"],["docks","clock","Dock slots"],["history","history","History"],["settings","settings","Settings"]];
   $("#navigation").innerHTML = items.map(([id,ico,label])=>`<button class="nav-item ${view===id?"active":""}" data-action="navigate" data-view="${id}" title="${label}" ${view===id?'aria-current="page"':''}>${icon(ico)}<span>${label}</span>${id==="pallets"&&state.pallets.some(p=>p.status==="open")?`<b class="nav-count">${state.pallets.filter(p=>p.status==="open").length}</b>`:""}</button>`).join("");
   $("#page-label").textContent = items.find(i=>i[0]===view)?.[2] || "Create order";
   const ready = state.sources.shipto && state.sources.quantities;
@@ -163,7 +165,7 @@ function stats() {
   const forms = activeForms(), c = counts(forms);
   return `<div class="stats">${[
     ["Open pallets",state.pallets.filter(p=>p.status==="open").length,"Consolidations in preparation","box",true],
-    ["Ready for pick-up",state.pallets.filter(p=>p.status==="finalised").length,"Finalised in this workspace","truck"],
+    ["Ready for pick-up",readyForLoad().length,"Finalised in this workspace","truck"],
     ["Transport forms",forms.filter(f=>f.status==="complete").length,`${forms.filter(f=>f.status==="draft").length} drafts saved for later`,"form"],
     ["Handling units",c.hus,`${c.dns} unique delivery numbers`,"grid"]
   ].map(([label,value,note,ico,featured])=>`<div class="stat ${featured?"stat-featured":""}"><div class="stat-label">${label}${icon(ico)}</div><div class="stat-value">${String(value).padStart(2,"0")}</div><div class="stat-note">${note}</div></div>`).join("")}</div>`;
@@ -218,7 +220,7 @@ function lineTotals() {
 
 function palletCard(p, clickable="select-pallet") {
   const forms = palletForms(p.id), c = counts(forms), emergency = forms.some(f=>f.automaticEmergency||f.manualEmergency);
-  return `<button class="pallet-card ${selectedPallet===p.id&&clickable==="select-pallet"?"selected":""}" data-action="${clickable}" data-id="${p.id}"><div class="pallet-card-heading"><div><strong>${esc(p.destination.building || "Destination pending")} — ${esc(p.destination.shipTo)}</strong><div class="pallet-department">${esc(p.destination.department || "Draft consolidation")}</div></div><span class="pallet-mark">${icon("box")}</span></div><div class="pallet-id">${esc(p.id)} · ${esc(p.destination.shipTo)}</div><div class="pallet-card-footer"><span>${forms.length} forms · ${c.hus} HUs${emergency?" · Emergency":""}</span>${statusPill(p.status)}</div></button>`;
+  return `<button class="pallet-card ${selectedPallet===p.id&&clickable==="select-pallet"?"selected":""}" data-action="${clickable}" data-id="${p.id}"><div class="pallet-card-heading"><div><strong>${esc(p.destination.building || "Destination pending")} — ${esc(p.destination.shipTo)}</strong><div class="pallet-department">${esc(p.destination.department || "Draft consolidation")}</div></div><span class="pallet-mark">${icon("box")}</span></div><div class="pallet-id">${esc(p.id)} · ${esc(p.destination.shipTo)}</div><div class="pallet-card-footer"><span>${forms.length} forms · ${c.hus} HUs${emergency?" · Emergency":""}</span>${statusPill(palletStatus(p))}</div></button>`;
 }
 
 function renderPalletPanel() {
@@ -239,7 +241,7 @@ function renderInfeed() {
   return heading("Data workspace","SAP data infeed","Paste your two SAP tables. Preview them, check the results, then apply.",`<button class="btn" data-action="demo">${icon("grid")}Load fictional demo</button>`) +
     `<div class="banner">${icon("info")}Import replaces one table at a time. Completed forms retain their saved values. Drafts use the latest data when completed.</div><div class="data-grid">${sourceCard("shipto","Internals","Destination, delivery number and shipping priority",["Outbound Delivery Order","ERP Document","Handling Unit","Ship-To","Shipping Condition","External Delivery ID"])}${sourceCard("quantities","Quantities","Item quantities, summed per handling unit",["Document","Handling Unit","Quantity"])}</div>
     <div class="diagnostics card"><div class="card-body"><h2>Source consistency</h2><p class="mb0" style="font-size:11px">${!state.sources.shipto||!state.sources.quantities?"Load both tables to compare HU coverage.":mismatch?`${mismatch} HUs are missing from one source. Affected forms will be flagged.`:"Both tables contain the same HUs."}</p>${mismatch?`<details class="mt"><summary>Show unmatched HUs</summary><pre>Missing Quantities: ${esc(diagnostics.missingQuantities.join(", ")) || "None"}\nMissing Ship-to: ${esc(diagnostics.missingShipto.join(", ")) || "None"}</pre></details>`:""}</div></div>
-    <div class="integration-grid"><div class="integration-card">${icon("link")}<div><h3>Spotfire integration</h3><p>Ready for the dedicated report. SAP table imports are the active source.</p></div><span class="pill draft">Not connected</span></div><div class="integration-card">${icon("database")}<div><h3>Shared tracking</h3><p>Supabase and driver QR confirmations will connect in the next phase.</p></div><span class="pill draft">Next phase</span></div></div>`;
+    <div class="integration-grid"><div class="integration-card">${icon("link")}<div><h3>Spotfire integration</h3><p>Ready for the dedicated report. SAP table imports are the active source.</p></div><span class="pill draft">Not connected</span></div><div class="integration-card">${icon("database")}<div><h3>Shared tracking</h3><p>Local loading confirmations are available. Shared phone access will connect in the next phase.</p></div><span class="pill draft">Next phase</span></div></div>`;
 }
 
 function matches(record) {
@@ -265,8 +267,8 @@ function palletContents(forms) {
 }
 
 function renderPallets() {
-  const pallets = state.pallets.filter(p=>(filter==="all"||p.status===filter)&&matches({...p,forms:palletForms(p.id)})).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
-  return heading("Consolidation workspace","Your pallets","Manage open consolidations and finalised pallets from one place.") + toolbar([["all","All pallets"],["open","Open"],["finalised","Ready for pick-up"]]) + `<div id="filter-results" class="pallet-grid">${pallets.length?pallets.map(p=>palletCard(p,"pallet-detail")).join(""):`<div class="card empty">${icon("box")}<strong>No pallets found</strong><p>Create an order or adjust the filters.</p></div>`}</div>`;
+  const pallets = state.pallets.filter(p=>(filter==="all"||(filter==="finalised"?!p.collectedAt&&!reservedPalletIds().has(p.id)&&p.status===filter:filter==="collected"?Boolean(p.collectedAt):filter==="loading"?reservedPalletIds().has(p.id):p.status===filter))&&matches({...p,forms:palletForms(p.id)})).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  return heading("Consolidation workspace","Your pallets","Manage open consolidations and finalised pallets from one place.") + toolbar([["all","All pallets"],["open","Open"],["finalised","Ready for pick-up"],["loading","On a manifest"],["collected","Collected"]]) + `<div id="filter-results" class="pallet-grid">${pallets.length?pallets.map(p=>palletCard(p,"pallet-detail")).join(""):`<div class="card empty">${icon("box")}<strong>No pallets found</strong><p>Create an order or adjust the filters.</p></div>`}</div>`;
 }
 
 function toolbar(filters) {
@@ -275,11 +277,11 @@ function toolbar(filters) {
 
 function renderHistory() {
   let records = historyTab==="forms" ? [...state.forms] : historyTab==="pallets" ? [...state.pallets] : [...state.events];
-  records = records.filter(r=>matches(r) && (historyTab==="activity"||filter==="all"||(filter==="removed"?r.removedAt:!r.removedAt&&r.status===filter))).sort((a,b)=>(b.updatedAt||b.at).localeCompare(a.updatedAt||a.at));
+  records = records.filter(r=>matches(r) && (historyTab==="activity"||filter==="all"||(historyTab==="pallets"?(filter==="collected"?Boolean(r.collectedAt):filter==="loading"?reservedPalletIds().has(r.id):filter==="finalised"?r.status===filter&&!r.collectedAt&&!reservedPalletIds().has(r.id):r.status===filter):(filter==="removed"?r.removedAt:!r.removedAt&&r.status===filter)))).sort((a,b)=>(b.updatedAt||b.at).localeCompare(a.updatedAt||a.at));
   const tabs = [["forms","Transport forms"],["pallets","Pallets"],["activity","Activity log"]];
-  const filters = historyTab==="forms"?[["all","All forms"],["draft","Drafts"],["complete","Complete"],["removed","Removed"]]:historyTab==="pallets"?[["all","All pallets"],["open","Open"],["finalised","Ready for pick-up"]]:[["all","All activity"]];
+  const filters = historyTab==="forms"?[["all","All forms"],["draft","Drafts"],["complete","Complete"],["removed","Removed"]]:historyTab==="pallets"?[["all","All pallets"],["open","Open"],["finalised","Ready for pick-up"],["loading","On a manifest"],["collected","Collected"]]:[["all","All activity"]];
   const headers = historyTab==="activity" ? ["Action","Record","Details","When / user"] : ["Reference","Destination","Contents","Status","Updated",""];
-  return heading("Records & traceability","Order history","Find a shipment, reopen a pallet or review previous document revisions.") + stats() + `<div class="view-toolbar"><div class="segmented">${tabs.map(([key,label])=>`<button data-action="history-tab" data-tab="${key}" class="${historyTab===key?"selected":""}">${label}</button>`).join("")}</div></div>` + toolbar(filters) + `<section class="card table-wrap"><table class="record-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${records.length?records.map(r=>historyTab==="activity"?`<tr><td>${esc(r.action)}</td><td>${esc(r.target)}</td><td>${esc(r.detail)||"—"}</td><td>${formatDate(r.at)}<small>${esc(r.actor)}</small></td></tr>`:`<tr><td>${esc(r.id)}<small>${historyTab==="forms"?esc(r.palletId || "Unassigned draft"):`Revision ${r.revision}`}</small></td><td>${esc(r.destination.building || "Pending")}<small>${esc(r.destination.department)}</small></td><td>${historyTab==="forms"?`${r.lines.length} rows`:palletForms(r.id).length+" forms"}<small>${historyTab==="forms"?esc([...new Set(r.lines.map(l=>l.dn).filter(Boolean))].join(", ")):`${counts(palletForms(r.id)).hus} HUs`}</small></td><td>${statusPill(r.status,r.removedAt)}</td><td>${formatDate(r.updatedAt)}</td><td><button class="link-button" data-action="${historyTab==="forms"?"form-detail":"pallet-detail"}" data-id="${r.id}">View ${icon("chevron")}</button></td></tr>`).join(""):`<tr><td colspan="${headers.length}"><div class="empty">${icon("history")}<strong>No matching records</strong><p>Your saved orders and changes will appear here.</p></div></td></tr>`}</tbody></table></section>`;
+  return heading("Records & traceability","Order history","Find a shipment, reopen a pallet or review previous document revisions.") + stats() + `<div class="view-toolbar"><div class="segmented">${tabs.map(([key,label])=>`<button data-action="history-tab" data-tab="${key}" class="${historyTab===key?"selected":""}">${label}</button>`).join("")}</div></div>` + toolbar(filters) + `<section class="card table-wrap"><table class="record-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${records.length?records.map(r=>historyTab==="activity"?`<tr><td>${esc(r.action)}</td><td>${esc(r.target)}</td><td>${esc(r.detail)||"—"}</td><td>${formatDate(r.at)}<small>${esc(r.actor)}</small></td></tr>`:`<tr><td>${esc(r.id)}<small>${historyTab==="forms"?esc(r.palletId || "Unassigned draft"):`Revision ${r.revision}`}</small></td><td>${esc(r.destination.building || "Pending")}<small>${esc(r.destination.department)}</small></td><td>${historyTab==="forms"?`${r.lines.length} rows`:palletForms(r.id).length+" forms"}<small>${historyTab==="forms"?esc([...new Set(r.lines.map(l=>l.dn).filter(Boolean))].join(", ")):`${counts(palletForms(r.id)).hus} HUs`}</small></td><td>${statusPill(historyTab==="pallets"?palletStatus(r):r.status,r.removedAt)}</td><td>${formatDate(r.updatedAt)}</td><td><button class="link-button" data-action="${historyTab==="forms"?"form-detail":"pallet-detail"}" data-id="${r.id}">View ${icon("chevron")}</button></td></tr>`).join(""):`<tr><td colspan="${headers.length}"><div class="empty">${icon("history")}<strong>No matching records</strong><p>Your saved orders and changes will appear here.</p></div></td></tr>`}</tbody></table></section>`;
 }
 
 function renderSettings() {
@@ -291,8 +293,9 @@ function renderSettings() {
 
 function render() {
   updateShell();
-  $("#main").innerHTML = ({create:renderCreate,infeed:renderInfeed,pallets:renderPallets,"open-orders":renderOpenOrders,history:renderHistory,settings:renderSettings}[view] || renderCreate)();
+  $("#main").innerHTML = ({create:renderCreate,infeed:renderInfeed,pallets:renderPallets,"open-orders":renderOpenOrders,history:renderHistory,settings:renderSettings,loads:renderLoads,docks:renderDocks}[view] || renderCreate)();
   sessionStorage.setItem("transport-order.editor", JSON.stringify({editor,selectedPallet,dirty}));
+  checkDockReminders();
 }
 
 function markDirty() {
@@ -308,6 +311,7 @@ function toast(message) {
 }
 
 function showDialog(title, body, foot="", wide=false, subtitle="") {
+  stopCamera();
   const dialog = $("#dialog");
   if (dialog.open) dialog.close();
   dialogCallback = null;
@@ -405,7 +409,7 @@ async function submitPrint(document) {
 async function openPreview(document) {
   previewDocument = document;
   const html = await api("print?" + new URLSearchParams({...document,copies:1}),undefined,true);
-  showDialog(document.kind==="pallet"?"Pallet consolidation":"Transport order",`<div class="preview-summary">${esc(document.id)} · Revision ${document.revision} · Saved document preview. Direct printing uses your selected Windows printer.</div><iframe id="print-frame" class="preview-frame" title="Printable transport document"></iframe>`,`<label>Copies<select id="print-copies">${[1,2,3,4,5].map(n=>`<option value="${n}" ${state.settings[document.kind==="pallet"?"finalCopies":"openCopies"]===n?"selected":""}>${n}</option>`).join("")}</select></label><button class="btn" data-action="close-dialog">Close</button><button class="btn primary" data-action="browser-pdf">Save PDF</button><button class="btn primary" data-action="print-document">${icon("print")}Print directly</button>`,true);
+  showDialog(document.kind==="load"?"Loading manifest":document.kind==="pallet"?"Pallet consolidation":"Transport order",`<div class="preview-summary">${esc(document.id)} · Revision ${document.revision} · Saved document preview. Direct printing uses your selected Windows printer.</div><iframe id="print-frame" class="preview-frame" title="Printable transport document"></iframe>`,`<label>Copies<select id="print-copies">${[1,2,3,4,5].map(n=>`<option value="${n}" ${state.settings[document.kind==="load"?"manifestCopies":document.kind==="pallet"?"finalCopies":"openCopies"]===n?"selected":""}>${n}</option>`).join("")}</select></label><button class="btn" data-action="close-dialog">Close</button><button class="btn primary" data-action="browser-pdf">Save PDF</button><button class="btn primary" data-action="print-document">${icon("print")}Print directly</button>`,true);
   $("#print-frame").srcdoc=html;
 }
 
@@ -418,7 +422,7 @@ function detail(kind, id) {
   const pallet = kind==="form"?state.pallets.find(p=>p.id===record.palletId):record;
   const editable = !record.removedAt && (!pallet || pallet.status==="open");
   const versions = [...record.versions].reverse();
-  showDialog(kind==="form"?"Transport order details":"Pallet details",`<div class="dialog-body"><div class="detail-meta"><div><strong>${esc(id)}</strong>${statusPill(record.status,record.removedAt)}<br>Created ${formatDate(record.createdAt)}<br>Updated ${formatDate(record.updatedAt)}</div><div><strong>${esc(record.destination.building || "Destination pending")}</strong>${esc(record.destination.department)}<br>${esc(record.destination.shipTo)}</div></div>${kind==="pallet"?`${palletContents(forms)}<h3>Forms on this pallet</h3><div class="detail-forms">${forms.map(f=>`<button class="btn small" data-action="form-detail" data-id="${f.id}">${esc(f.id)} · ${esc(f.status)}</button>`).join("")||"<p>No active forms.</p>"}</div>`:`<div class="table-wrap"><table class="record-table"><thead><tr><th>12NC</th><th>Description</th><th>Qty</th><th>HU</th><th>DN</th></tr></thead><tbody>${record.lines.map(l=>`<tr>${["part","description","qty","hu","dn"].map(k=>`<td>${esc(l[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="mt" style="white-space:pre-wrap">${esc(record.remarks)||"No additional remarks."}</p>`}<h3>Document revisions</h3><div class="detail-forms">${versions.length?versions.map(v=>`<button class="btn small" data-action="version" data-kind="${kind}" data-id="${id}" data-revision="${v.revision}">${icon("print")}Revision ${v.revision} · ${formatDate(v.at||v.updatedAt)}</button>`).join(""):"<p>No completed document yet.</p>"}</div><h3>Activity</h3><ul class="timeline">${events.map(e=>`<li>${esc(e.action)}${e.detail?` — ${esc(e.detail)}`:""}<small>${formatDate(e.at)} · ${esc(e.actor)}</small></li>`).join("")}</ul></div>`,`<button class="btn" data-action="close-dialog">Close</button>${kind==="form"&&editable?`<button class="btn danger" data-action="remove-form" data-id="${id}">Remove form</button><button class="btn primary" data-action="edit-form" data-id="${id}">${icon("edit")}Edit form</button>`:""}${kind==="pallet"&&record.status==="finalised"?`<button class="btn primary" data-action="reopen" data-id="${id}">Reopen pallet</button>`:""}${kind==="pallet"&&record.status==="open"?`<button class="btn primary" data-action="select-pallet" data-id="${id}">Continue this pallet</button>`:""}`,true);
+  showDialog(kind==="form"?"Transport order details":"Pallet details",`<div class="dialog-body"><div class="detail-meta"><div><strong>${esc(id)}</strong>${statusPill(record.collectedAt?"Collected":reservedPalletIds().has(record.id)?"On loading manifest":record.status,record.removedAt)}<br>Created ${formatDate(record.createdAt)}<br>Updated ${formatDate(record.updatedAt)}</div><div><strong>${esc(record.destination.building || "Destination pending")}</strong>${esc(record.destination.department)}<br>${esc(record.destination.shipTo)}</div></div>${kind==="pallet"?`${palletContents(forms)}<h3>Forms on this pallet</h3><div class="detail-forms">${forms.map(f=>`<button class="btn small" data-action="form-detail" data-id="${f.id}">${esc(f.id)} · ${esc(f.status)}</button>`).join("")||"<p>No active forms.</p>"}</div>`:`<div class="table-wrap"><table class="record-table"><thead><tr><th>12NC</th><th>Description</th><th>Qty</th><th>HU</th><th>DN</th></tr></thead><tbody>${record.lines.map(l=>`<tr>${["part","description","qty","hu","dn"].map(k=>`<td>${esc(l[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="mt" style="white-space:pre-wrap">${esc(record.remarks)||"No additional remarks."}</p>`}<h3>Document revisions</h3><div class="detail-forms">${versions.length?versions.map(v=>`<button class="btn small" data-action="version" data-kind="${kind}" data-id="${id}" data-revision="${v.revision}">${icon("print")}Revision ${v.revision} · ${formatDate(v.at||v.updatedAt)}</button>`).join(""):"<p>No completed document yet.</p>"}</div><h3>Activity</h3><ul class="timeline">${events.map(e=>`<li>${esc(e.action)}${e.detail?` — ${esc(e.detail)}`:""}<small>${formatDate(e.at)} · ${esc(e.actor)}</small></li>`).join("")}</ul></div>`,`<button class="btn" data-action="close-dialog">Close</button>${kind==="form"&&editable?`<button class="btn danger" data-action="remove-form" data-id="${id}">Remove form</button><button class="btn primary" data-action="edit-form" data-id="${id}">${icon("edit")}Edit form</button>`:""}${kind==="pallet"&&record.status==="finalised"&&!record.collectedAt&&!reservedPalletIds().has(record.id)?`<button class="btn primary" data-action="reopen" data-id="${id}">Reopen pallet</button>`:""}${kind==="pallet"&&record.status==="open"?`<button class="btn primary" data-action="select-pallet" data-id="${id}">Continue this pallet</button>`:""}`,true);
 }
 
 function renderPresets(building="all", query="") {
@@ -442,8 +446,41 @@ async function previewImport(kind, silent=false) {
 }
 
 const actions = {
+  async "create-load"(b) {
+    const building=b.dataset.building;
+    if(!await confirmAction("Create loading manifest?",`Include all ${readyForLoad(building).length} ready pallets for ${building}? They will be reserved for this truck. Open pallets are excluded.`,"Create manifest"))return;
+    const result=await mutate("create_load",{building});selectedLoad=result.loadId;view="loads";render();toast("Manifest created. Preview or print the driver copy when ready.");
+  },
+  async "load-detail"(b) { selectedLoad=b.dataset.id;render(); },
+  async "open-scanner"(b) { driverDraft="";vehicleDraft="";selectedLoad=b.dataset.id||null;openScanner(b.dataset.id); },
+  async "start-camera"() { await startCamera(); },
+  async "stop-camera"() { stopCamera();scannerFeedback("Camera stopped. QR input is still available."); },
+  async "scan-input"() { await acceptScan($("#scan-input").value); },
+  async "unscan-pallet"(b) {
+    const reason=await confirmAction("Remove pallet from truck?","This removes its scan from the current pickup. Physically unload it before confirming.","Remove scan",true);
+    if(!reason){openScanner(b.dataset.id);return;}
+    await mutate("unscan_load",{id:b.dataset.id,palletId:b.dataset.pallet,reason});render();openScanner(b.dataset.id);
+  },
+  async "complete-load"() {
+    const l=state.loads.find(l=>l.id===selectedLoad);
+    driverDraft=$("#loading-driver").value;vehicleDraft=$("#loading-vehicle").value;
+    if(!driverDraft.trim()||!vehicleDraft.trim())throw new Error("Enter driver name and vehicle registration before confirming pickup.");
+    if(!l.scans.length)throw new Error("Scan at least one pallet, or cancel this manifest.");
+    const partial=l.scans.length<l.pallets.length;
+    const result=await confirmAction(partial?"Confirm partial pickup?":"Confirm truck pickup?",`${l.scans.length}/${l.pallets.length} pallets will be marked collected. ${partial?"Unscanned pallets will return to ready for the next truck. Explain why they remain behind.":"Confirm these scanned pallets are on the truck."}`,"Confirm pickup",partial);
+    if(!result){openScanner(l.id);return;}
+    await mutate("complete_load",{id:l.id,driver:driverDraft,vehicle:vehicleDraft,reason:partial?result:""});stopCamera();$("#dialog").close();view="loads";render();toast("Pickup recorded. Remaining pallets are available for the next truck.");
+  },
+  async "cancel-load"(b) {
+    const reason=await confirmAction("Cancel manifest?","This releases its pallets for another manifest. Ensure nothing has left before cancelling.","Cancel manifest",true);
+    if(!reason)return;await mutate("cancel_load",{id:b.dataset.id,reason});render();toast("Manifest cancelled. Pallets released.");
+  },
+  async "add-slot"() { captureDocks();dockDraft.push({building:"",days:[0,1,2,3,4],start:"09:00",end:"09:30"});render(); },
+  async "remove-slot"(b) { captureDocks();dockDraft.splice(Number(b.dataset.index),1);render(); },
+  async "save-slots"() { captureDocks();await mutate("settings",{dockSlots:dockDraft,manifestCopies:Number($("#manifest-copies").value)});dockDraft=null;render();toast("Dock slots saved. Reminders start 20 minutes before arrival."); },
+
   async "expand-source"(b) { expandedSource=expandedSource===b.dataset.kind?null:b.dataset.kind;render(); },
-  async navigate(b) { if(view==="infeed"&&b.dataset.view!==view){for(const kind of ["shipto","quantities"])await previewImport(kind,true);}view=b.dataset.view; filter="all"; search=""; if(view==="settings")await loadPrinters();render(); },
+  async navigate(b) { if(view==="infeed"&&b.dataset.view!==view){for(const kind of ["shipto","quantities"])await previewImport(kind,true);}view=b.dataset.view; filter="all"; search=""; if(view==="settings")await loadPrinters();if(view!=="docks")dockDraft=null;stopCamera();render(); },
   async refresh() { await loadState(); render(); toast("Saved data refreshed. Your current form is preserved."); },
   async mode(b) { if(editor.mode===b.dataset.mode)return; editor.mode=b.dataset.mode; resolveResult=null; editor.lines.forEach(l=>l.issues=[]); markDirty(); render(); if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async origin() { originExpanded=!originExpanded; render(); },
@@ -485,10 +522,10 @@ const actions = {
   async "print-document"() { await submitPrint({...previewDocument,copies:Number($("#print-copies").value)}); },
   async "retry-print"() { if(!await confirmAction("Retry this print job?","Check the Windows print queue first. Retry only if the previous job did not reach the queue.","Retry printing"))return;await submitPrint(pendingPrint); },
   async "preview-pending"() { await openPreview(pendingPrint); },
-  async "close-dialog"() { if(dialogCallback){const done=dialogCallback;dialogCallback=null;done(false);}$("#dialog").close(); },
+  async "close-dialog"() { stopCamera(); if(dialogCallback){const done=dialogCallback;dialogCallback=null;done(false);}$("#dialog").close(); },
   async "cancel-confirm"() { const done=dialogCallback;dialogCallback=null;$("#dialog").close();done?.(false); },
   async "accept-confirm"() { const input=$("#confirm-reason");const value=input?input.value.trim():true;if(input&&!value){input.focus();return;}const done=dialogCallback;dialogCallback=null;$("#dialog").close();done?.(value); },
-  async help() { showDialog("Your shipping workflow",`<div class="dialog-body"><h3>1. Load the SAP data</h3><p>Open Data infeed. Paste Ship-to and Quantities including their headers, or import the XLSX files. Check the preview and apply each table.</p><h3>2. Prepare a form</h3><p>Paste HUs into the form. DN, destination, quantity and Emergency fill automatically. Add descriptions, part numbers and remarks as needed. Use Manual mode for exceptions.</p><h3>3. Build the pallet</h3><p>Choose Print &amp; keep open to save the form and print one copy by default, without a browser print screen. Select that pallet on the right to add more forms. Start a different pallet if the destination changes.</p><h3>4. Finalise when ready</h3><p>Finalisation prints two copies by default of a consolidation listing every delivery and HU. Open History to reprint, inspect revisions or reopen a pallet for correction.</p><div class="banner">${icon("info")}This phase saves on this computer. QR tracking, driver confirmations, shared storage and Spotfire are not connected yet.</div></div>`,`<button class="btn primary" data-action="close-dialog">Start preparing</button>`); },
+  async help() { showDialog("Your shipping workflow",`<div class="dialog-body"><h3>1. Load the SAP data</h3><p>Open Data infeed. Paste Ship-to and Quantities including their headers, or import the XLSX files. Click Validate &amp; apply for each table.</p><h3>2. Prepare a form</h3><p>Paste HUs into the form. DN, destination, quantity and Emergency fill automatically. Add descriptions, part numbers and remarks as needed. Use Manual mode for exceptions.</p><h3>3. Build the pallet</h3><p>Choose Print &amp; keep open to save the form and print one copy by default, without a browser print screen. Select that pallet on the right to add more forms. Start a different pallet if the destination changes.</p><h3>4. Finalise when ready</h3><p>Finalisation prints two copies by default of a consolidation listing every delivery and HU. Open History to reprint, inspect revisions or reopen a pallet for correction.</p><div class="banner">${icon("info")}This phase saves on this computer. Loading manifests and QR scans work in this local workspace. Shared phone access and Spotfire are not connected yet.</div></div>`,`<button class="btn primary" data-action="close-dialog">Start preparing</button>`); },
   async shutdown() { if(!await confirmDiscard())return;if(!await confirmAction("Close TransportOrder?","Your saved drafts, forms and pallets will be available next time you start the application.","Close application"))return;await api("shutdown",{});dirty=false;sessionStorage.removeItem("transport-order.editor");$("#dialog").close();$("#main").innerHTML=heading("Workspace closed","All saved work is kept","You can close this window. Run the application again to continue."); },
   async demo() {
     if(!await confirmAction("Load fictional SAP data?","This replaces both imported tables with clearly fictional records. Existing forms and pallets are kept.","Load demo tables"))return;
@@ -523,6 +560,8 @@ document.addEventListener("input",event=>{
     const draft=imports[input.dataset.grid],row=Number(input.dataset.gridRow),col=Number(input.dataset.gridColumn);
     draft.grid[row] ||= [];draft.grid[row][col]=input.value;draft.text="";delete draft.fileBase64;delete draft.filename;
   }
+  if(input.id==="loading-driver")driverDraft=input.value;
+  if(input.id==="loading-vehicle")vehicleDraft=input.value;
   if(input.id==="preset-search")$("#preset-results").innerHTML=renderPresets(input.dataset.building,input.value);
   if(input.id==="pallet-search") { const start=input.selectionStart;palletSearch=input.value;$("#pallet-panel").innerHTML=renderPalletPanel();$("#pallet-search").focus();$("#pallet-search").setSelectionRange(start,start); }
   if(input.id==="record-search") { const start=input.selectionStart;search=input.value;const content=view==="pallets"?renderPallets():view==="open-orders"?renderOpenOrders():renderHistory();$("#main").innerHTML=content;$("#record-search").focus();$("#record-search").setSelectionRange(start,start); }
@@ -571,7 +610,9 @@ document.addEventListener("paste",event=>{
 });
 
 document.addEventListener("keydown",event=>{
-  const input=event.target;if(!input.dataset.grid)return;
+  const input=event.target;
+  if(input.id==="scan-input"&&event.key==="Enter"){event.preventDefault();acceptScan(input.value);return;}
+  if(!input.dataset.grid)return;
   let row=Number(input.dataset.gridRow),col=Number(input.dataset.gridColumn);
   if(event.key==="Enter"||event.key==="ArrowDown")row++;
   else if(event.key==="ArrowUp")row--;
@@ -585,7 +626,8 @@ document.addEventListener("keydown",event=>{
 });
 window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(state?.settings.theme==="system")applyTheme();});
 
-$("#dialog").addEventListener("cancel",()=>{if(dialogCallback){const done=dialogCallback;dialogCallback=null;done(false);}});
+$("#dialog").addEventListener("close",stopCamera);
+$("#dialog").addEventListener("cancel",()=>{stopCamera();if(dialogCallback){const done=dialogCallback;dialogCallback=null;done(false);}});
 window.addEventListener("beforeunload",event=>{if(dirty){event.preventDefault();event.returnValue="";}});
 $("#refresh-button").innerHTML=icon("refresh");
 $("#help-icon").innerHTML=icon("info");
@@ -603,5 +645,117 @@ $("#power-icon").innerHTML=icon("power");
       }
     } catch {}
     render();
+    const scan=new URLSearchParams(location.hash.slice(1)).get("scan");
+    if(scan){view="loads";selectedLoad=null;render();openScanner();await acceptScan(scan);}
+    const poll=()=>setTimeout(async()=>{await checkDockReminders();poll();},30000);poll();
   } catch(error) { $("#main").innerHTML=heading("Workspace unavailable","Open the application link",esc(error.message)); }
 })();
+
+function reservedPalletIds() {
+  return new Set((state.loads||[]).filter(l=>l.status==="ready").flatMap(l=>l.pallets.map(p=>p.id)));
+}
+function readyForLoad(building) {
+  const reserved=reservedPalletIds();
+  return state.pallets.filter(p=>p.status==="finalised"&&!p.collectedAt&&!reserved.has(p.id)&&(!building||p.destination.building.toLowerCase()===building.toLowerCase()));
+}
+function loadContents(load) {
+  const scanned=new Map(load.scans.map(s=>[s.palletId,s.at]));
+  return `<div class="table-wrap"><table class="record-table"><thead><tr><th>Pallet / revision</th><th>Ship-to / forms</th><th>DNs / HUs</th><th>Loading</th></tr></thead><tbody>${load.pallets.map(p=>`<tr><td><b>${esc(p.id)}</b><small>Revision ${p.revision}</small></td><td>${esc(p.destination.shipTo)}<small>${p.forms.map(f=>esc(f.id)).join(" · ")}</small></td><td>${esc([...new Set(p.forms.flatMap(f=>f.lines.map(l=>l.dn).filter(Boolean)))].join(", "))}<small>${esc(p.forms.flatMap(f=>f.lines.map(l=>l.hu).filter(Boolean)).join(", "))}</small></td><td>${scanned.has(p.id)?`<span class="pill open">Scanned</span><small>${formatDate(scanned.get(p.id))}</small>${load.status==="ready"?`<button class="link-button" data-action="unscan-pallet" data-id="${load.id}" data-pallet="${p.id}">Remove from truck</button>`:""}`:`<span class="pill draft">${load.status==="ready"?"Awaiting scan":"Not collected"}</span>`}</td></tr>`).join("")}</tbody></table></div>`;
+}
+function renderLoads() {
+  const buildings=[...new Set(readyForLoad().map(p=>p.destination.building))].sort();
+  const current=state.loads.find(l=>l.id===selectedLoad);
+  return heading("Dispatch & traceability","Truck loading","Prepare one manifest per building. Scan each pallet, then confirm the actual pickup.")+`<div class="banner">${icon("info")}Local workspace: scanning works on this computer. Driver phones need a shared HTTPS service before rollout.</div><div class="loading-layout"><section class="card"><div class="card-head"><h2>Ready for a truck</h2>${icon("truck")}</div><div class="card-body">${buildings.length?buildings.map(building=>{const ps=readyForLoad(building),c=counts(ps.flatMap(p=>palletForms(p.id)));return `<div class="load-building"><div><h3>${esc(building)}</h3><p>${ps.length} pallets · ${c.dns} DNs · ${c.hus} HUs</p></div><button class="btn primary" data-action="create-load" data-building="${esc(building)}">Create manifest</button></div>`;}).join(""):`<p>No unassigned finalised pallets. Finalise pallets to make them available here.</p>`}</div></section><section class="card"><div class="card-head"><h2>Loading manifests</h2><button class="btn small" data-action="open-scanner">Scan manifest</button></div><div class="card-body load-history">${[...state.loads].reverse().map(l=>`<button class="load-record ${selectedLoad===l.id?"selected":""}" data-action="load-detail" data-id="${l.id}"><b>${esc(l.building)} · ${esc(l.id)}</b><span>${l.scans.length}/${l.pallets.length} pallets · ${esc(l.status)} · ${formatDate(l.createdAt)}</span></button>`).join("")||"<p>No manifests yet.</p>"}</div></section></div>${current?`<section class="card mt"><div class="card-head"><div><h2>${esc(current.building)} · ${esc(current.id)}</h2><p>${current.scans.length}/${current.pallets.length} scanned · ${esc(current.status)}</p></div><div class="inline-actions"><button class="btn" data-action="version" data-kind="load" data-id="${current.id}" data-revision="1">${icon("print")}Manifest / print</button>${current.status==="ready"?`<button class="btn primary" data-action="open-scanner" data-id="${current.id}">Continue loading</button><button class="btn danger" data-action="cancel-load" data-id="${current.id}">Cancel manifest</button>`:""}</div></div>${loadContents(current)}${current.completedAt?`<div class="card-body"><b>Pickup confirmed by ${esc(current.driver)} · ${esc(current.vehicle)}</b><p>${formatDate(current.completedAt)} · ${esc(current.reason)}</p></div>`:""}</section>`:""}`;
+}
+function dockRow(slot,index) {
+  return `<div class="dock-row" data-dock="${index}"><label>Building<input data-slot="building" value="${esc(slot.building)}" list="dock-buildings"></label><div class="dock-days"><span>Weekdays</span>${["Mon","Tue","Wed","Thu","Fri"].map((d,i)=>`<label><input type="checkbox" data-day="${i}" ${slot.days.includes(i)?"checked":""}>${d}</label>`).join("")}</div><label>Arrival from<input type="time" data-slot="start" value="${slot.start}"></label><label>Until<input type="time" data-slot="end" value="${slot.end}"></label><button class="btn danger" data-action="remove-slot" data-index="${index}">Remove</button></div>`;
+}
+function captureDocks() {
+  $$("[data-dock]").forEach(row=>{
+    const slot=dockDraft[Number(row.dataset.dock)];
+    for(const field of ["building","start","end"])slot[field]=$(`[data-slot="${field}"]`,row).value;
+    slot.days=$$("[data-day]",row).filter(c=>c.checked).map(c=>Number(c.dataset.day));
+  });
+}
+function renderDocks() {
+  if(dockDraft===null)dockDraft=structuredClone(state.settings.dockSlots||[]);
+  return heading("Weekday arrival windows","Dock slots","Set the actual schedule for each building. Buildings without slots can still have loading manifests.")+`<section class="card"><div class="card-body"><p>Times use Europe/Amsterdam. A reminder appears 20 minutes before arrival and stays visible through the slot while there are open or unassigned ready pallets. Keep this app running for reminders.</p><datalist id="dock-buildings">${[...new Set(directory.toLocations.map(r=>r.building))].sort().map(b=>`<option value="${esc(b)}"></option>`).join("")}</datalist>${dockDraft.map(dockRow).join("")}<button class="btn mt" data-action="add-slot">${icon("plus")}Add dock slot</button><div class="fields two mt"><label>Manifest copies<select id="manifest-copies">${[1,2,3,4,5].map(n=>`<option value="${n}" ${state.settings.manifestCopies===n?"selected":""}>${n}</option>`).join("")}</select><span class="field-hint">Default: 1 driver document per truck.</span></label></div><button class="btn primary mt" data-action="save-slots">Save dock slots</button></div></section>`;
+}
+async function checkDockReminders() {
+  if(!state||!$("#dock-alerts"))return;
+  try {
+    const parts=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Amsterdam",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date()).map(p=>[p.type,p.value]));
+    const localTime=`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+    const result=await api("dock-reminders?"+new URLSearchParams({localTime}));
+    $("#dock-alerts").innerHTML=result.reminders.map(r=>`<div class="banner warn dock-reminder">${icon("clock")}<div><b>${esc(r.building)} · dock slot ${r.start}–${r.end}</b><br>Close ${r.open} open pallets and prepare the final loading manifest. ${r.ready} ready pallets await a manifest.</div><button class="btn small" data-action="navigate" data-view="loads">Prepare truck</button></div>`).join("");
+  } catch {}
+}
+function scannerFeedback(text,error=false) {
+  const el=$("#scan-feedback");if(el){el.textContent=text;el.className="banner "+(error?"error":"");}
+}
+function renderScannerProgress() {
+  const l=state.loads.find(l=>l.id===selectedLoad);
+  if(!$("#scan-progress"))return;
+  $("#scan-progress").innerHTML=l?`<div class="scan-count">${l.scans.length}<span> / ${l.pallets.length}</span></div><h2>${esc(l.building)}</h2><p>${esc(l.id)} · ${esc(l.status)}</p>${loadContents(l)}${l.status==="ready"?`<div class="fields two mt"><label>Driver name<input id="loading-driver" value="${esc(driverDraft)}" autocomplete="name"></label><label>Vehicle registration<input id="loading-vehicle" value="${esc(vehicleDraft)}"></label></div><button class="btn primary wide mt" data-action="complete-load">Confirm pickup (${l.scans.length}/${l.pallets.length})</button>`:""}`:"<h2>Scan the loading manifest</h2><p>Then keep scanning the pallet QRs. The camera stays on between scans.</p>";
+}
+function openScanner(id) {
+  stopCamera();
+  if(id)selectedLoad=id;
+  showDialog("Driver loading check",`<div class="dialog-body"><div class="banner">Local test: use this computer's camera or a USB scanner. Phone access requires shared hosting.</div><div class="scanner-layout"><div><video id="scan-video" playsinline muted aria-label="QR scanner camera"></video><div class="inline-actions mt"><button class="btn" data-action="start-camera">Start camera</button><button class="btn" data-action="stop-camera">Stop camera</button></div><label class="mt">QR / scanner input<input id="scan-input" placeholder="Scan QR here, then press Enter" autocomplete="off"></label><button class="btn wide mt" data-action="scan-input">Check code</button><div id="scan-feedback" class="banner mt" role="status">Ready to scan.</div></div><div id="scan-progress"></div></div></div>`,`<button class="btn" data-action="close-dialog">Close scanner</button>`,true);
+  renderScannerProgress();$("#scan-input")?.focus();
+}
+async function acceptScan(value) {
+  if(scanBusy)return;
+  scanBusy=true;
+  try {
+    let code=value.trim();
+    if(code.includes("://"))code=new URLSearchParams(new URL(code).hash.slice(1)).get("scan")||"";
+    const match=/^TO:(PALLET|LOAD):([A-Z0-9-]+):(\d+)$/.exec(code);
+    if(!match)throw new Error("This is not a TransportOrder QR code.");
+    if(match[1]==="LOAD") {
+      const load=state.loads.find(l=>l.id===match[2]);
+      if(!load||load.revision!==Number(match[3]))throw new Error("Manifest not found or superseded. Refresh the saved data.");
+      if(selectedLoad&&selectedLoad!==load.id)throw new Error("A different manifest is already selected. Close this scanner before switching loads.");
+      if(load.status!=="ready")throw new Error("This manifest is already closed.");
+      selectedLoad=load.id;renderScannerProgress();scannerFeedback("Manifest opened. Scan each pallet now.");
+    } else {
+      if(!selectedLoad)throw new Error("Scan a loading manifest first.");
+      const result=await mutate("scan_load",{id:selectedLoad,code});
+      renderScannerProgress();scannerFeedback(result.duplicate?"Already scanned — count unchanged.":`Pallet accepted. ${result.count} scanned.`);
+    }
+    if($("#scan-input"))$("#scan-input").value="";
+  } catch(error) {
+    try { await loadState();renderScannerProgress(); } catch {}
+    scannerFeedback(error.message,true);
+  }
+  finally {scanBusy=false;}
+}
+function stopCamera() {
+  cameraRun++;cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;
+}
+async function startCamera() {
+  stopCamera();
+  const run=cameraRun;
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error("Camera unavailable. Use a connected QR scanner or manual QR input.");
+  const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+  if(run!==cameraRun||!$("#dialog").open){stream.getTracks().forEach(t=>t.stop());return;}
+  cameraStream=stream;
+  const video=$("#scan-video");video.srcObject=stream;
+  try{await video.play();}catch(error){stopCamera();throw error;}
+  const canvas=document.createElement("canvas"),ctx=canvas.getContext("2d",{willReadFrequently:true});
+  let last="",lastAt=0;
+  async function tick() {
+    if(run!==cameraRun)return;
+    try {
+      if(video.readyState>=2&&!scanBusy) {
+        canvas.width=Math.min(video.videoWidth,800);canvas.height=Math.round(video.videoHeight*canvas.width/video.videoWidth);
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        const image=ctx.getImageData(0,0,canvas.width,canvas.height);
+        const result=jsQR(image.data,image.width,image.height,{inversionAttempts:"dontInvert"});
+        if(result&&(result.data!==last||Date.now()-lastAt>2500)) {last=result.data;lastAt=Date.now();await acceptScan(result.data);}
+      }
+    } catch(error) {scannerFeedback("Camera read failed: "+error.message,true);}
+    if(run===cameraRun)setTimeout(tick,160);
+  }
+  scannerFeedback("Camera active. Hold a QR code inside the view.");tick();
+}

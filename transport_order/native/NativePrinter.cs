@@ -13,7 +13,7 @@ public class PrintModel {
     public string kind; public string id; public int revision; public string title; public string at;
     public string preparedBy; public PrintLocation origin; public PrintLocation destination;
     public string status; public PrintColumn[] columns; public string[][] rows; public string[][] summary;
-    public string remarks; public string contact; public bool obsolete; public bool qrPlaceholder;
+    public string remarks; public string contact; public bool obsolete; public bool qrPlaceholder; public string[] qr;
 }
 public class PrintRequest { public PrintModel document; public string printer; public int copies; public string outputPath; }
 
@@ -82,7 +82,7 @@ public static class TransportOrderPrinter {
 
     private class Mark {
         public RectangleF rectangle; public string text; public float size; public bool bold;
-        public bool box; public bool fill; public bool dashed; public bool centered; public Color color;
+        public bool qrModule; public bool box; public bool fill; public bool dashed; public bool centered; public Color color;
     }
 
     private class PageLayout {
@@ -124,10 +124,13 @@ public static class TransportOrderPrinter {
             Text(model.at, bounds.Left, bounds.Top + 55, bounds.Width, 16, 9, false, false, Color.DimGray);
             if (model.qrPlaceholder) {
                 float right = bounds.Right - 90;
-                Box(right, bounds.Top, 90, 90, false, true);
-                Text("QR CODE", right + 5, bounds.Top + 15, 80, 22, 11, true, true, Navy);
-                Text("Tracking to be", right + 5, bounds.Top + 42, 80, 17, 8.5f, false, true, Color.Black);
-                Text("connected", right + 5, bounds.Top + 60, 80, 17, 8.5f, false, true, Color.Black);
+                if (model.qr != null && model.qr.Length > 0) {
+                    float module = 100f / (model.qr.Length + 8);
+                    for (int row = 0; row < model.qr.Length; row++)
+                        for (int col = 0; col < model.qr[row].Length; col++)
+                            if (model.qr[row][col] == '1')
+                                current.Add(new Mark { qrModule = true, rectangle = new RectangleF(bounds.Right - 100 + (col + 4) * module, bounds.Top + (row + 4) * module, module, module) });
+                }
             }
             y = bounds.Top + (model.qrPlaceholder ? 110 : 79);
         }
@@ -235,7 +238,8 @@ public static class TransportOrderPrinter {
 
         public void Draw(Graphics graphics, int page, int copy, int copies) {
             foreach (Mark mark in pages[page]) {
-                if (mark.box) {
+                if (mark.qrModule) { graphics.FillRectangle(Brushes.Black, mark.rectangle); }
+                else if (mark.box) {
                     if (mark.fill) using (Brush fill = new SolidBrush(Color.FromArgb(237, 240, 250))) graphics.FillRectangle(fill, mark.rectangle);
                     using (Pen pen = new Pen(Color.FromArgb(160, 173, 195), .7f)) {
                         if (mark.dashed) pen.DashStyle = DashStyle.Dash;

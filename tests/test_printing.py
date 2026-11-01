@@ -34,7 +34,7 @@ class DocumentTests(unittest.TestCase):
         model=document_model(self.state,"pallet",saved["palletId"],1)
         self.assertEqual(model["title"],"Transport order")
         html=render_document(self.state,"pallet",saved["palletId"],1)
-        self.assertLess(html.index("class='qr-placeholder'"),html.index("</header>"))
+        self.assertLess(html.index('aria-label="Shipment QR code"'),html.index("</header>"))
         self.assertIn("building-name",html)
 
     def test_two_delivery_title(self):
@@ -58,10 +58,10 @@ class DocumentTests(unittest.TestCase):
         self.assertIn("description", [c["key"] for c in model["columns"]])
         self.assertNotIn("part", [c["key"] for c in model["columns"]])
 
-    def test_qr_placeholder_only_on_final_consolidation(self):
+    def test_qr_only_on_final_consolidation(self):
         saved = apply_action(self.state, "save_form", form(intent="finalise"))
-        self.assertIn("class='qr-placeholder'", render_document(self.state,"pallet",saved["palletId"],1))
-        self.assertNotIn("class='qr-placeholder'", render_document(self.state,"form",saved["formId"],1))
+        self.assertIn('aria-label="Shipment QR code"', render_document(self.state,"pallet",saved["palletId"],1))
+        self.assertNotIn('aria-label="Shipment QR code"', render_document(self.state,"form",saved["formId"],1))
 
     def test_destination_picker_is_filtered_without_changing_origin(self):
         self.assertFalse(any(r["building"].upper() in ("BUILDING 05","BEST II","EINDHOVEN 1") for r in LOCATIONS["toLocations"]))

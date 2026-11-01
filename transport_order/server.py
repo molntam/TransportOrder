@@ -8,6 +8,7 @@ import subprocess
 import threading
 import webbrowser
 from functools import partial
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -77,15 +78,22 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     q = parse_qs(urlsplit(self.path).query)
                     kind = q.get("kind", [""])[0]
-                    if kind not in ("form", "pallet"):
+                    if kind not in ("form", "pallet", "load"):
                         raise InputError("Unknown document type.")
                     copies = int(q.get("copies", ["1"])[0])
                     if copies not in range(1, 6):
                         raise InputError("Choose 1 to 5 copies.")
-                    html = render_document(state, kind, q.get("id", [""])[0], int(q.get("revision", ["0"])[0]), copies)
+                    html = render_document(state, kind, q.get("id", [""])[0], int(q.get("revision", ["0"])[0]), copies, f"http://127.0.0.1:{self.server.server_port}")
                     self.send(200, html, "text/html; charset=utf-8")
                 except (ValueError, KeyError) as exc:
                     self.send(400, {"error": str(exc)})
+            elif path == "/api/dock-reminders":
+                from .loads import dock_reminders
+                try:
+                    local_time = datetime.fromisoformat(parse_qs(urlsplit(self.path).query)["localTime"][0])
+                    self.send(200, {"reminders": dock_reminders(state, local_time)})
+                except (ValueError, KeyError):
+                    self.send(400, {"error": "Supply a valid dock-local date and time."})
             elif path == "/api/printers":
                 try:
                     self.send(200, list_printers())
@@ -97,6 +105,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.trusted_request():
             return
         static = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
+                  "/jsQR.js": ("jsQR.js", "text/javascript"),
                   "/styles.css": ("styles.css", "text/css"), "/favicon.svg": ("favicon.svg", "image/svg+xml")}
         if path not in static:
             self.send(404, "Not found", "text/plain")
@@ -150,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
 def create_server(store, token, port=0):
     server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, store=store, token=token))
     server.daemon_threads = True
-    server.print_service = PrintService()
+    server.print_service = PrintService(f"http://127.0.0.1:{server.server_port}")
     return server
 
 

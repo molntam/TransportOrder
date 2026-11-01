@@ -65,7 +65,8 @@ def list_printers():
 
 
 class PrintService:
-    def __init__(self):
+    def __init__(self, base_url=""):
+        self.base_url = base_url
         self.lock = threading.Lock()
         self.completed = {}
 
@@ -78,8 +79,8 @@ class PrintService:
                 return self.completed[request_id]
             state = store.snapshot()
             kind = payload.get("kind")
-            model = document_model(state, kind, payload.get("id"), int(payload.get("revision", 0)))
-            copies = int(payload.get("copies", state["settings"]["finalCopies" if kind == "pallet" else "openCopies"]))
+            model = document_model(state, kind, payload.get("id"), int(payload.get("revision", 0)), self.base_url)
+            copies = int(payload.get("copies", state["settings"]["manifestCopies" if kind == "load" else "finalCopies" if kind == "pallet" else "openCopies"]))
             if copies not in range(1, 6):
                 raise InputError("Choose between 1 and 5 copies.")
             output = store.directory / "printouts"

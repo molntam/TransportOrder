@@ -48,3 +48,17 @@ Use Settings → Export backup for a portable JSON copy. For manual recovery, cl
 - On the workstation, change the Windows default printer while the app setting remains Windows default. The next job must follow the new default. Selecting a fixed app printer must not alter Windows defaults.
 - Try an unavailable printer. The form must remain saved, no successful submission should be claimed, and Retry must be an explicit action after checking the queue.
 - Microsoft Print to PDF/XPS uses the workspace `printouts` folder. Third-party driver-specific dialogs and company PowerShell restrictions require local acceptance testing.
+
+
+## Loading and dock-slot acceptance (0.5.0)
+
+Automated coverage includes manifest snapshots/reservations, wrong building and wrong membership, obsolete QRs, duplicate scans, full/partial pickup, scan reversal, cancellation, legacy-state migration, native manifest copy defaults and dock reminder boundaries/weekends. The UI smoke test exercises manifest creation, scanner progress, a partial pickup and QR encode/decode roundtrips using the bundled reader. Camera capture and physical print readability still require workstation checks.
+
+1. Finalise two pallets for one building and one for another. Create a manifest; check only the first two are included and no longer appear available for another truck. Open pallets must be excluded. Preview the manifest and verify pallet IDs/revisions, form IDs, ship-to, every DN/HU and quantities.
+2. Print one manifest copy and the current pallet documents on the actual queue. Scan both printed QR types with the workstation camera. Check camera permission denial, USB scanner input, repeated codes, wrong destination, a correct-building pallet from a different load and an old reprinted pallet revision.
+3. Keep the camera running through multiple accepted/error scans. Verify closing the dialog, changing navigation and opening a confirmation stop the camera. Camera frames stay on the computer.
+4. Scan one of two pallets. Enter driver/registration and confirm partial pickup with a reason. Check the scanned pallet is Collected, the other is available for a new manifest, and all timestamps/reasons remain in Truck loading and Activity.
+5. Remove an accidental scan with a reason, then rescan. Cancel a separate manifest and check reservations are released, the document is superseded and the underlying pallets can be corrected. Collected pallets cannot be reopened.
+6. Enter actual weekday dock slots, including two slots for one building if needed. With open/ready pallets present, check the reminder starts 20 minutes before start, persists through the slot and disappears after the end or after the work is closed/reserved. Confirm it uses Netherlands local time, including daylight-saving changes. No reminder is promised while the app is closed.
+7. Close/restart the app with a partially scanned active manifest. Continue scanning without losing progress. Use two browser windows to verify stale changes are rejected and the next scan works after state refresh.
+8. Confirm manifest QRs require the authenticated workspace on the same computer. Do not treat them as production phone links; shared HTTPS/driver access is a future integration.

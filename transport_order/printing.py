@@ -3,6 +3,7 @@ from decimal import Decimal
 from html import escape
 
 from .domain import find
+from .qr import matrix, svg
 from .integrations.sap import InputError
 
 
@@ -21,7 +22,9 @@ def notes(form):
     return "\n".join(values)
 
 
-def document_model(state, kind, record_id, revision):
+def document_model(state, kind, record_id, revision, base_url=""):
+    if kind == "load":
+        return load_model(state, record_id, revision, base_url)
     if kind not in ("form", "pallet"):
         raise InputError("Unknown document type.")
     record = find(state, "forms" if kind == "form" else "pallets", record_id)
@@ -58,7 +61,8 @@ def document_model(state, kind, record_id, revision):
             "status": ("Individual transport form · " if kind == "form" else "Finalised pallet · ") + f"{len(hus)} HUs · {len(dns)} deliveries",
             "columns": columns, "rows": [[str(line.get(c["key"], "")) for c in columns] for line in lines],
             "summary": [[dn, str(len(v["hus"])), format(v["qty"], "f")] for dn, v in sorted(summary.items())],
-            "remarks": remarks.strip(), "contact": contact, "obsolete": obsolete, "qrPlaceholder": kind == "pallet"}
+            "remarks": remarks.strip(), "contact": contact, "obsolete": obsolete, "qrPlaceholder": kind == "pallet",
+            "qr": matrix(f"TO:PALLET:{record_id}:{revision}") if kind == "pallet" else []}
 
 
 def address(location):
@@ -91,16 +95,14 @@ tr { break-inside: avoid; }
 .signature { margin-top: 28px; padding: 18px 0; border-top: 1px solid #aab5c9; display: flex; justify-content: space-between; }
 .status { background: #edf0fa; padding: 9px; margin-bottom: 15px; font-size: 10pt; }
 .obsolete { background: #fff0df; border: 1px solid #c66d14; padding: 12px; margin-bottom: 15px; font-weight: bold; }
-.qr-placeholder { width: 92px; min-height: 92px; border: 2px dashed #7b89a3; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; flex-shrink: 0; padding: 8px; break-inside: avoid; }
-.qr-placeholder strong { color: #000066; font-size: 11pt; }
-.qr-placeholder small { font-size: 8pt; color: #485976; line-height: 1.4; margin-top: 6px; }
+header > svg { flex-shrink: 0; }
 footer { color: #485976; font-size: 9pt; border-top: 1px solid #aab5c9; padding-top: 10px; margin-top: 20px; }
 """
 
 
-def render_document(state, kind, record_id, revision, copies=1):
-    model = document_model(state, kind, record_id, revision)
-    qr = "<div class='qr-placeholder' aria-label='QR code placeholder'><strong>QR CODE</strong><small>Tracking to be connected</small></div>" if model["qrPlaceholder"] else ""
+def render_document(state, kind, record_id, revision, copies=1, base_url=""):
+    model = document_model(state, kind, record_id, revision, base_url)
+    qr = svg(model["qr"]) if model.get("qr") else ""
     header = f"<header><div><h1>{e(model['title'])}</h1><span>Delivery Operations · Netherlands</span></div><div class='meta'><b>{e(record_id)}</b><br>Revision {revision}<br>{e(model['at'])}<br>Prepared by {e(model['preparedBy'])}</div>{qr}</header>"
     alert = "<div class='obsolete'>SUPERSEDED DOCUMENT — this record was changed, removed or reopened. Check the current revision before use.</div>" if model["obsolete"] else ""
     body = f"<div class='addresses'><div class='address'><span class='label'>From</span>{address(model['origin'])}</div><div class='address'><span class='label'>To</span>{address(model['destination'])}</div></div><div class='status'>{e(model['status'])}</div>"
@@ -115,3 +117,31 @@ def render_document(state, kind, record_id, revision, copies=1):
     body += "<div class='signature'><span>Received / transported by: __________________</span><span>Name + signature: __________________</span></div>"
     pages = "".join(f"<section class='copy'>{alert}{header}{body}<footer>{e(record_id)} · Revision {revision} · Copy {i + 1} of {copies} · TransportOrder</footer></section>" for i in range(copies))
     return f"<!doctype html><html lang='en'><head><meta charset='utf-8'><title>{e(record_id)} — revision {revision}</title><style>{STYLE}</style></head><body>{pages}</body></html>"
+
+
+def load_model(state, record_id, revision, base_url=""):
+    load = find(state, 'loads', record_id)
+    version = next((v for v in load['versions'] if v['revision'] == revision), None)
+    if not version:
+        raise InputError('There is no completed manifest for this revision.')
+    pallets = version['pallets']
+    forms = [f for p in pallets for f in p['forms']]
+    rows = [[p['id'], str(p['revision']), f['id'], p['destination']['shipTo'], l.get('dn', ''), l.get('hu', ''), l['qty']]
+            for p in pallets for f in p['forms'] for l in f['lines']]
+    code = f"TO:LOAD:{record_id}:{revision}"
+    if base_url:
+        code = base_url + '/#scan=' + code
+    return {'kind': 'load', 'id': record_id, 'revision': revision, 'title': 'Loading manifest',
+            'at': version['createdAt'], 'preparedBy': version['preparedBy'] or 'Local user',
+            'origin': forms[0]['origin'],
+            'destination': {'building': version['building'], 'department': 'Truck loading',
+                            'shipTo': ', '.join(dict.fromkeys(p['destination']['shipTo'] for p in pallets))},
+            'status': f"{len(pallets)} pallets · {len({r[4] for r in rows if r[4]})} deliveries · {len({r[5] for r in rows if r[5]})} HUs",
+            'columns': [{'key': k, 'label': label, 'weight': weight} for k, label, weight in [
+                ('pallet', 'Pallet / consolidation', 1.6), ('revision', 'Rev', .4), ('form', 'Form', 1.5),
+                ('shipTo', 'Ship-to', 1), ('dn', 'DN', 1.2), ('hu', 'HU', 1.3), ('qty', 'Qty', .6)]],
+            'rows': rows, 'summary': [], 'remarks': 'Scan this manifest, then scan each pallet being loaded. '
+            'Only scanned pallets are confirmed collected. Uncollected pallets return to ready for pick-up after a partial pickup. '
+            'This is the planned loading list; the live loading record contains actual collection results. '
+            'Local prototype: the manifest QR opens this computer only; driver phone access is not connected yet.',
+            'contact': '', 'obsolete': load['status'] == 'cancelled', 'qrPlaceholder': True, 'qr': matrix(code)}

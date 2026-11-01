@@ -156,8 +156,46 @@ async function main() {
   assert.match(execute('renderPalletPanel()'),/Building 21 — B21-MOASSY/);
   assert.match(execute('renderInfeed()'),/>Internals</);
   assert.match(execute('renderInfeed()'),/expand-source/);
-  console.log("UI smoke passed: all five views, imports, HU resolution, quantity sum, two-form consolidation, direct-print requests, themes, editable cell paste, filtered destinations, reopening, conflicts and manual entry.");
-  console.log("This is a DOM-shell/API integration check, native submission is mocked; this is not a physical-printer test.");
+
+  for(const hu of ["LOAD-HU-01","LOAD-HU-02"]) {
+    execute(`editor=newEditor(null);selectedPallet=null;editor.mode="manual";editor.destination={building:"Loading test",department:"Dock",shipTo:"LOAD-DOCK"};editor.lines=[{...emptyLine(),hu:${JSON.stringify(hu)},dn:"LOAD-DN",qty:"1"}]`);
+    await execute('saveForm("finalise")');
+  }
+  await execute('actions["create-load"]({dataset:{building:"Loading test"}})');
+  assert.equal(execute('state.loads[0].pallets.length'),2);
+  assert.equal(execute('readyForLoad("Loading test").length'),0);
+  assert.match(execute('renderLoads()'),/Loading test/);
+  execute('openScanner(selectedLoad)');
+  await execute('acceptScan("TO:PALLET:"+state.loads[0].pallets[0].id+":1")');
+  assert.equal(execute('state.loads[0].scans.length'),1);
+  await execute('acceptScan("TO:PALLET:"+state.loads[0].pallets[0].id+":1")');
+  assert.equal(execute('state.loads[0].scans.length'),1);
+  assert.match(document.elements.get("scan-feedback").textContent,/Already scanned/);
+  await execute('acceptScan("TO:PALLET:"+state.pallets[0].id+":1")');
+  assert.match(document.elements.get("scan-feedback").textContent,/Wrong destination/);
+  execute('$("#loading-driver").value="Test driver";$("#loading-vehicle").value="TEST-01"');
+  await execute('actions["complete-load"]()');
+  assert.equal(execute('state.loads[0].status'),"partial");
+  assert.equal(execute('readyForLoad("Loading test").length'),1);
+  await execute('openPreview({kind:"load",id:state.loads[0].id,revision:1})');
+  assert.match(document.elements.get("print-frame").srcdoc,/Loading manifest/);
+  assert.match(document.elements.get("print-frame").srcdoc,/LOAD-HU-01/);
+  assert.match(document.elements.get("print-frame").srcdoc,/Shipment QR code/);
+  for(const page of ["loads","docks"]) {
+    execute(`view=${JSON.stringify(page)};render()`);
+    assert.doesNotMatch(document.elements.get("main").innerHTML,/\bundefined\b/);
+  }
+  const jsQR=require(path.join(root,"transport_order/web/jsQR.js"));
+  const {spawnSync}=require("node:child_process");
+  for(const payload of ["TO:PALLET:P-123456789ABC:1","http://127.0.0.1:8765/#scan=TO:LOAD:LOAD-123456789ABC:1"]) {
+    const qr=spawnSync(process.env.PYTHON||"python",["-c","import json,sys;from transport_order.qr import matrix;print(json.dumps(matrix(sys.argv[1])))",payload],{cwd:root,encoding:"utf8"});
+    assert.equal(qr.status,0,qr.stderr);
+    const matrix=JSON.parse(qr.stdout),scale=6,width=(matrix.length+8)*scale,pixels=new Uint8ClampedArray(width*width*4).fill(255);
+    matrix.forEach((row,y)=>[...row].forEach((cell,x)=>{if(cell==="1")for(let dy=0;dy<scale;dy++)for(let dx=0;dx<scale;dx++){const i=(((y+4)*scale+dy)*width+(x+4)*scale+dx)*4;pixels[i]=pixels[i+1]=pixels[i+2]=0;}}));
+    assert.equal(jsQR(pixels,width,width).data,payload);
+  }
+  console.log("UI/API smoke passed, including manifest creation, QR progress, duplicates, wrong destination, partial pickup, manifest print and QR encode/decode roundtrip.");
+  console.log("Native submission is mocked; this is not a physical-printer or live-camera test.");
 }
 
 main().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>{

@@ -34,11 +34,11 @@ Manual sign-in and a visible controlled browser belong to that provider. No Spot
 
 The next phase should replace the local store through a repository/service boundary while retaining domain validation. Keep privileged keys on trusted services. The driver website should operate on scoped, unpredictable pallet/trip capabilities through validated server-side operations, rather than unrestricted anonymous table writes.
 
-Pallet finalisation is the natural revision boundary for a QR capability. Reopening must revoke the old capability before edits, then generate a new one when finalised again. Existing documents and event history should remain available. Driver trips, grouped collection and destination-specific delivery confirmation are not implemented in this phase.
+Pallet finalisation is the natural revision boundary for a QR capability. Reopening must revoke the old capability before edits, then generate a new one when finalised again. Existing documents and event history should remain available. Grouped collection and local driver loading checks are implemented in `loads.py`. Shared phone access and destination delivery confirmation remain unimplemented.
 
 ### Printing and archiving
 
-Both HTML preview and native Windows printing use the same `document_model` generated from saved snapshots. Consolidated output contains no child-form IDs; entirely empty optional part/description columns are omitted. The final document includes a labelled QR placeholder, not a scannable tracking code.
+Both HTML preview and native Windows printing use the same `document_model` generated from saved snapshots. Consolidated output contains no child-form IDs; entirely empty optional part/description columns are omitted. Final pallet documents include revision-specific QR codes. Loading manifests include a local application link. HTML SVG and C# black module rendering use the same QR matrix with a four-module quiet zone.
 
 `native_print.py` serialises document data to a temporary JSON file and invokes a fixed Windows PowerShell command. It never interpolates document text or printer names into executable code. The bundled C# renderer uses `System.Drawing.Printing.PrintDocument` and `StandardPrintController` to submit without a browser or print dialog. A4, simplex and collated application-generated copies are used. Leaving the printer setting empty follows the current Windows default; an explicit printer name affects only that job. PDF/XPS virtual printers receive an output filename.
 
@@ -51,3 +51,14 @@ Saving/finalising commits before print submission. Failure leaves saved work ava
 Settings migrate existing workspaces to Light appearance, one open-form copy, two final-pallet copies and the live Windows default printer. Theme changes preserve printer/origin settings. CSS surface/text tokens cover both light and dark appearances; printed documents remain light.
 
 SAP cell grids accept tabular clipboard data at the focused cell, preserve identifiers as text, handle quoted multiline cells, and paginate large input datasets. Header pastes replace the grid; data-only pastes use the prefilled SAP headers. Preview/apply still goes through the same server-side validation as file imports.
+
+
+## Loading manifests and dock slots
+
+`loads.py` owns ready-pallet selection, reservations, manifest snapshots, server-validated scans and pickup completion. Active manifests reserve pallet IDs. Reopening is blocked for reserved or collected pallets. Completing a partial load releases its unscanned pallets and marks only scanned pallets collected; cancellation releases all reservations while retaining history. Removing an accidental scan and cancelling/partially completing a load require reasons. Driver and vehicle fields are mandatory for pickup confirmation but are self-reported.
+
+Manifests combine finalised pallets by normalised building and require a common origin, retaining each pallet's department/ship-to. Reservations and collection flags are separate from immutable print revisions. Print content remains the planned manifest; actual scan results live on the load record. No automatic print occurs when creating a manifest. Its separate default is one copy.
+
+`TO:PALLET:<id>:<revision>` codes are identifiers, not authentication capabilities. Manifest links use the running loopback address and have no session secrets. Every API call still needs the local session token. Camera frames are decoded locally by bundled jsQR; they are not uploaded or retained. Progress mutations use normal revision checks and atomic storage. The camera remains active between successful/failed scans and stops on dialog close, navigation or confirmation.
+
+Weekday slots are user-configured; no operational arrival times are inferred. The UI formats current time in Europe/Amsterdam and calls the protected reminder endpoint immediately and every 30 seconds. Reminders persist from 20 minutes before arrival through the slot while open or unassigned ready pallets remain. They are in-app only and require the app to run.

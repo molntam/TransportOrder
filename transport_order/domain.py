@@ -24,7 +24,7 @@ DEFAULT_ORIGIN = {"building": "Building 05", "department": "Delivery Ops", "ship
 
 def default_settings():
     return {"preparedBy": "", "origin": dict(DEFAULT_ORIGIN), "openCopies": 1,
-            "finalCopies": 2, "printer": "", "theme": "light"}
+            "finalCopies": 2, "manifestCopies": 1, "dockSlots": [], "printer": "", "theme": "light"}
 
 
 def migrate_settings(settings):
@@ -43,7 +43,7 @@ def uid(prefix):
 
 def initial_state():
     return {"schema": 1, "revision": 0, "sources": {"shipto": None, "quantities": None},
-            "forms": [], "pallets": [], "events": [],
+            "forms": [], "pallets": [], "loads": [], "events": [],
             "settings": default_settings()}
 
 
@@ -276,6 +276,9 @@ def finalise(state, pallet):
 
 
 def apply_action(state, action, payload):
+    from .loads import apply_load_action, reserved_ids, validate_slots
+    if action in {"create_load", "scan_load", "unscan_load", "complete_load", "cancel_load"}:
+        return apply_load_action(state, action, payload)
     if action == "import":
         result = parse_table(payload.get("kind"), payload.get("text", ""), payload.get("content"), payload.get("decimalMark", "."))
         if result["errors"]:
@@ -294,7 +297,7 @@ def apply_action(state, action, payload):
         return {}
     if action == "settings":
         settings = migrate_settings({**state["settings"], **payload})
-        for key in ("openCopies", "finalCopies"):
+        for key in ("openCopies", "finalCopies", "manifestCopies"):
             settings[key] = int(settings[key])
             if settings[key] not in range(1, 6):
                 raise InputError("Choose between 1 and 5 copies for each document type.")
@@ -303,7 +306,8 @@ def apply_action(state, action, payload):
         state["settings"] = {"preparedBy": str(settings["preparedBy"]).strip()[:200],
             "origin": clean_location(settings["origin"]), "openCopies": settings["openCopies"],
             "finalCopies": settings["finalCopies"], "printer": str(settings["printer"]).strip()[:300],
-            "theme": settings["theme"]}
+            "theme": settings["theme"], "manifestCopies": settings["manifestCopies"],
+            "dockSlots": validate_slots(settings["dockSlots"])}
         event(state, "Settings updated", "settings")
         return {}
     if action == "save_form":
@@ -354,6 +358,8 @@ def apply_action(state, action, payload):
         return finalise(state, find(state, "pallets", payload.get("id")))
     if action == "reopen_pallet":
         pallet = find(state, "pallets", payload.get("id"))
+        if pallet.get("collectedAt") or pallet["id"] in reserved_ids(state):
+            raise InputError("This pallet is collected or reserved on a loading manifest. Cancel the manifest before correcting an uncollected pallet.")
         reason = str(payload.get("reason", "")).strip()[:1000]
         if pallet["status"] != "finalised" or not reason:
             raise InputError("Select a finalised pallet and enter a reason for reopening.")

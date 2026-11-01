@@ -30,7 +30,7 @@ If the browser does not open automatically, use the full local link printed in t
 
 1. Open **Data infeed**.
 2. Click an input cell and press **Ctrl+V** to paste the **Ship-to** and **Quantities** SAP tables. Headers are prefilled for data-only pastes; a paste containing headers replaces the input grid. File import (`.xlsx`, `.csv`, `.tsv`, `.txt`) is still available.
-3. Preview, resolve any errors and apply each table. Pasted quantities can use a decimal point or comma; select the matching format before previewing. XLSX quantities use the workbook's numeric values.
+3. Click **Validate & apply**, resolving any errors. Leaving Data infeed also applies changed valid cells. Pasted quantities can use a decimal point or comma; select the matching format before validating. XLSX quantities use the workbook's numeric values.
 4. Open **Create order**. Enter HUs one by one or use **Paste HUs**. Destination, DN, quantity and Emergency fill from the imports.
 5. Enter optional part numbers, descriptions and remarks.
 6. Use **Print & keep open** to save the form and print **one copy** directly. Select that pallet on the right to add another form.
@@ -49,7 +49,7 @@ For fictional examples, choose **Load fictional demo** in Data infeed. `DEMO-HU-
 - Local persistence, a previous-state backup, an export-backup button and protection against stale-window saves.
 - Versioned completed forms and pallet documents; reopening retains the old consolidation and marks it superseded.
 - A4 portrait direct Windows printing, separate copy defaults for open forms/final pallets and optional previews from History.
-- Consolidations omit individual form IDs and hide unused 12NC/description columns; final documents include a labelled QR placeholder.
+- Consolidations omit individual form IDs and hide unused 12NC/description columns; final documents include a scannable revision-specific pallet QR.
 - Destination choices show building and ship-to together; Building 05, Best II and Eindhoven 1 are removed from the destination picker. Origin choices are retained.
 - Settings for appearance, origin, preparer, printer and copies. Optional receiver contact details, Emergency and Special Pick-up flags.
 
@@ -63,7 +63,7 @@ Appearance can be changed in Settings (Light, Dark, Follow system), or toggled f
 
 Data is saved outside the repository in **`~/TransportOrderData`** (`%USERPROFILE%\TransportOrderData` on Windows). The main file is `transport-order.json`; the previous successful state is `transport-order.previous.json`. Closing the browser does not delete saved work. One application process can open a data folder at a time. Multiple browser windows share that process, with revision checks preventing overwrites.
 
-**This version is a local, single-workstation prototype.** Supabase, driver pages, tracking QR codes, SharePoint PDF uploads and Spotfire automation are not connected. Finalisation currently means ready for pick-up in this local workspace. It does not notify drivers or another workstation. The preparer name is a local setting, not verified sign-in.
+**This version is a local, single-workstation prototype.** Loading manifests, pallet QRs and the driver loading screen work in this local workspace. Driver phones, shared storage, SharePoint PDF uploads and Spotfire automation are not connected. The app does not notify another workstation. Preparer and driver names are local labels, not verified sign-in.
 
 Part numbers and descriptions remain manual because the two current SAP exports do not contain them. One automatic row represents an HU's aggregate quantity; it does not invent item-level material details. A form supports up to 500 rows. Each input supports up to 50,000 source records.
 
@@ -79,6 +79,8 @@ The server binds only to `127.0.0.1`, uses a fresh session token at startup and 
 | `transport_order/integrations/sap.py` | Paste, CSV and XLSX ingestion |
 | `transport_order/integrations/spotfire.py` | Inactive provider boundary for the later report |
 | `transport_order/locations.json` | Origin/destination directory and operational routing |
+| `transport_order/loads.py` | Loading manifests, reservations, scan validation, pickups and weekday dock slots |
+| `transport_order/qr.py` | Offline QR encoding shared by HTML and native printing |
 | `transport_order/storage.py` | Atomic JSON persistence and concurrency protection |
 | `transport_order/printing.py` | Shared document model and printable HTML |
 | `transport_order/native_print.py`, `transport_order/native/NativePrinter.cs` | Windows printer discovery, direct spool submission and paginated native rendering |
@@ -114,3 +116,18 @@ Summary cards are in History, keeping order processing focused. Open pallets dis
 Before completing/printing, free-text remarks require Keep/Cancel confirmation. Exact Emergency notes are exempt when Emergency applies, and exact Keysight notes only when the current destination is Keysight. Cancelling retains the editor for correction. Empty optional part/description columns are omitted from individual orders as well as consolidations.
 
 Data infeed presents Internals and Quantities side by side, with an Expand/Collapse control on each. Narrow screens stack the tables.
+
+
+## Changes in 0.5.0 — truck loading
+
+1. Configure actual weekday arrival windows in **Dock slots**. No schedules are assumed. Times use Europe/Amsterdam; an in-app reminder starts 20 minutes before the slot when that building has open or unassigned ready pallets. The app must stay running. Manifest copies default to one and can be changed here.
+2. In **Truck loading**, choose **Create manifest** for a building. It includes every unassigned finalised pallet for that building, including different ship-to departments, and excludes open/collected pallets. Pallets from different origins cannot be combined. The immutable manifest lists pallet/consolidation IDs and revisions, form IDs, ship-to, DNs, HUs and quantities. Preview and print the driver copy explicitly.
+3. Included pallets are reserved against other manifests and cannot be reopened. Cancel the manifest with a reason before correcting an uncollected pallet. A cancelled manifest is retained and its print marked superseded.
+4. Open **Continue loading**, or scan the manifest QR in the authenticated local workspace. Start the camera once and scan pallet QRs continuously. A USB scanner or QR text input also works. The bundled reader works offline; camera permission is requested only on Start camera.
+5. Progress counts pallets, such as 1/20. Wrong-building, unrelated and superseded QRs are rejected. Duplicate scans leave progress unchanged. **Remove from truck** reverses a scan with an audit reason before confirmation.
+6. Enter driver name and vehicle registration, then **Confirm pickup**. Partial pickup requires a reason and marks only scanned pallets collected. Unscanned pallets become available for the next truck. Cancel with a reason if no pallets leave. Collected pallets cannot be reopened.
+7. Manifests retain their planned contents. The loading record separately records actual scans, timestamps, driver, vehicle and partial-pickup reason. Pallet views distinguish reserved and collected pallets; the activity log records all loading actions. These labels do not prove a physical scan or authenticate the driver.
+
+Existing saved forms and pallets migrate automatically. Old printed placeholder QRs must be replaced by reprinting the current pallet revision to use scanning.
+
+Manifest QRs currently point to the running local app address and contain no session token. They require an already authenticated workspace on that same computer. **They will not open the shipment on a driver's phone.** Production driver use needs a shared HTTPS service, scoped driver links, authentication/authorisation and concurrent shared storage. Delivery-at-destination confirmation is a later step. See [third-party notices](docs/THIRD_PARTY.md) for the bundled QR libraries.

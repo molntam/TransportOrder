@@ -49,10 +49,11 @@ class Store:
         if self.path.exists():
             try:
                 self.state = json.loads(self.path.read_text(encoding="utf-8"))
-                if self.state.get("schema") != 1 or not all(k in self.state for k in initial_state()):
+                if self.state.get("schema") != 1 or not all(k in self.state for k in initial_state() if k != "loads"):
                     raise ValueError("Unsupported data format")
             except (ValueError, OSError) as exc:
                 raise RuntimeError(f"Cannot read {self.path}. The file has been preserved. Restore a valid backup before restarting.") from exc
+        self.state.setdefault("loads", [])
         self.state["settings"] = migrate_settings(self.state["settings"])
 
     def snapshot(self):
