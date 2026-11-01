@@ -2,11 +2,17 @@
 
 This backend is the next layer for TransportOrder. The desktop app in v0.5 still saves locally. Creating these tables does not upload local workspaces, change printing or activate phone scanning. No SAP transaction rows are seeded.
 
+## Current project deployment
+
+The configured project was set up on 1 November 2026 through the Supabase SQL Editor using the reviewed migration in one transaction. Verification found 13 application tables with RLS, 28 destination presets and no operator accounts or shipment records. Live anonymous/non-member access checks passed and the security advisor reported no findings. Performance advice contained only unused-index information for the new empty tables; those indexes support the planned lookups and are retained.
+
+The live workspace ID and schema version are recorded in `supabase/project.json`. Dashboard execution does not register the migration in the Supabase CLI migration-history table. Reconcile that version as applied before a future CLI push; do not rerun the create-table migration on this configured project. For repeatable read/access verification, run `supabase/tests/access_rules.sql` as an administrative SQL transaction. It rolls back and does not create test users or shipments.
+
 ## Apply the setup
 
 The project is `shipment-tracking-prototype`, ref `cwwpuapvgwoelhpwserm`, in Ireland (`eu-west-1`). Its API URL and workspace slug are recorded in `supabase/project.json`; they are not secrets.
 
-Run the generated SQL file in `supabase/migrations/` once in the Supabase SQL Editor. Run it as one transaction if your SQL client does not already provide transactional execution. The setup creates the Delivery Operations 5L workspace and the 28 current destination presets. Actual dock schedules remain empty until entered. It also restricts external execution of the standard `rls_auto_enable()` event-trigger function when present; it does not remove the event trigger.
+For a new empty project, run the generated SQL file in `supabase/migrations/` once in the Supabase SQL Editor. Run it as one transaction if your SQL client does not already provide transactional execution. The setup creates the Delivery Operations 5L workspace and the 28 current destination presets. Actual dock schedules remain empty until entered. It also restricts external execution of the standard `rls_auto_enable()` event-trigger function when present; it does not remove the event trigger.
 
 Create an operator in **Authentication → Users → Add user → Create user**, with your chosen email/password. Confirm the account. Creating a user is separate from workspace access: nobody becomes an administrator automatically.
 

@@ -2,5 +2,9 @@
   "projectRef": "cwwpuapvgwoelhpwserm",
   "url": "https://cwwpuapvgwoelhpwserm.supabase.co",
   "workspaceSlug": "delivery-ops-5l",
-  "timezone": "Europe/Amsterdam"
+  "timezone": "Europe/Amsterdam",
+  "workspaceId": "111fb839-a913-4c34-ae02-1c1228f35f9c",
+  "deployedSchema": "20261101200346",
+  "deploymentMethod": "dashboard",
+  "migrationHistoryRecorded": false
 }
