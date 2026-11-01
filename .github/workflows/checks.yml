@@ -29,3 +29,14 @@ jobs:
           node-version: '22'
       - run: node --check transport_order/web/app.js
       - run: node tests/ui-smoke.cjs
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run test:database

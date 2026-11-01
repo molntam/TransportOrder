@@ -1,0 +1,10 @@
+{
+  "name": "transport-order-checks",
+  "private": true,
+  "scripts": {
+    "test:database": "node tests/database.cjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.4.6"
+  }
+}

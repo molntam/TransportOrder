@@ -131,3 +131,10 @@ Data infeed presents Internals and Quantities side by side, with an Expand/Colla
 Existing saved forms and pallets migrate automatically. Old printed placeholder QRs must be replaced by reprinting the current pallet revision to use scanning.
 
 Manifest QRs currently point to the running local app address and contain no session token. They require an already authenticated workspace on that same computer. **They will not open the shipment on a driver's phone.** Production driver use needs a shared HTTPS service, scoped driver links, authentication/authorisation and concurrent shared storage. Delivery-at-destination confirmation is a later step. See [third-party notices](docs/THIRD_PARTY.md) for the bundled QR libraries.
+
+
+## Supabase backend setup
+
+The `supabase/` directory contains the shared shipment database migration, destination presets and a first-administrator bootstrap script. It adds workspace access rules, versioned documents, controlled operator actions, scoped driver links, loading scans and pickup/delivery records. See [Supabase setup](docs/SUPABASE.md) for deployment, operator provisioning, API payloads and testing.
+
+The desktop runtime remains local until the sign-in/synchronisation and hosted driver client are connected. Applying the migration does not upload existing forms or change printing. Database regression tests use the pinned PGlite development dependency; running the desktop still requires only Python.
