@@ -129,7 +129,9 @@ def load_model(state, record_id, revision, base_url=""):
     rows = [[p['id'], str(p['revision']), f['id'], p['destination']['shipTo'], l.get('dn', ''), l.get('hu', ''), l['qty']]
             for p in pallets for f in p['forms'] for l in f['lines']]
     code = f"TO:LOAD:{record_id}:{revision}"
-    if base_url:
+    if load.get('online'):
+        code = load['online']['url']
+    elif base_url:
         code = base_url + '/#scan=' + code
     return {'kind': 'load', 'id': record_id, 'revision': revision, 'title': 'Loading manifest',
             'at': version['createdAt'], 'preparedBy': version['preparedBy'] or 'Local user',
@@ -143,5 +145,5 @@ def load_model(state, record_id, revision, base_url=""):
             'rows': rows, 'summary': [], 'remarks': 'Scan this manifest, then scan each pallet being loaded. '
             'Only scanned pallets are confirmed collected. Uncollected pallets return to ready for pick-up after a partial pickup. '
             'This is the planned loading list; the live loading record contains actual collection results. '
-            'Local prototype: the manifest QR opens this computer only; driver phone access is not connected yet.',
+            + ('Open this QR on the driver phone. The online loading record is authoritative.' if load.get('online') else 'Local prototype: publish this manifest online before printing for a driver phone.'),
             'contact': '', 'obsolete': load['status'] == 'cancelled', 'qrPlaceholder': True, 'qr': matrix(code)}

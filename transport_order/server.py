@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
+from .cloud import Cloud
 from . import __version__
 from .domain import LOCATIONS, resolve, source_diagnostics
 from .integrations import PROVIDERS
@@ -133,6 +134,15 @@ class Handler(BaseHTTPRequestHandler):
                 result = resolve(self.store.snapshot(), payload.get("lines", []), payload.get("formId"), payload.get("destination"), payload.get("overrideReason", ""))
             elif path == "/api/import-preview":
                 result = parse_table(payload.get("kind"), payload.get("text", ""), payload.get("content"), payload.get("decimalMark", "."))
+            elif path == "/api/cloud-login":
+                result = self.server.cloud.login(str(payload.get("email", "")), str(payload.get("password", "")))
+            elif path == "/api/cloud-logout":
+                self.server.cloud.session = None
+                result = {"connected": False}
+            elif path == "/api/cloud-publish":
+                result = self.server.cloud.publish(self.store, payload.get("id"))
+            elif path == "/api/cloud-refresh":
+                result = self.server.cloud.refresh(self.store, payload.get("id"))
             elif path == "/api/action":
                 result = self.store.apply(payload.get("action"), payload.get("payload", {}), payload.get("expectedRevision"))
                 result["revision"] = self.store.snapshot()["revision"]
@@ -159,6 +169,7 @@ class Handler(BaseHTTPRequestHandler):
 def create_server(store, token, port=0):
     server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, store=store, token=token))
     server.daemon_threads = True
+    server.cloud = Cloud()
     server.print_service = PrintService(f"http://127.0.0.1:{server.server_port}")
     return server
 

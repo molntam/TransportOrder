@@ -358,6 +358,8 @@ def apply_action(state, action, payload):
         return finalise(state, find(state, "pallets", payload.get("id")))
     if action == "reopen_pallet":
         pallet = find(state, "pallets", payload.get("id"))
+        if any(l.get("online") and any(p["id"] == pallet["id"] for p in l["pallets"]) for l in state.get("loads", [])):
+            raise InputError("This pallet has been published online. Online revision corrections are not supported in this test release.")
         if pallet.get("collectedAt") or pallet["id"] in reserved_ids(state):
             raise InputError("This pallet is collected or reserved on a loading manifest. Cancel the manifest before correcting an uncollected pallet.")
         reason = str(payload.get("reason", "")).strip()[:1000]

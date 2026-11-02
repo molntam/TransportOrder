@@ -27,9 +27,18 @@ All assets are self-hosted. Camera access starts only after the driver presses S
 
 `.openai/hosting.json` identifies the existing public Sites project. Deploy `dist` as static assets. Preserve fragment URLs. `_headers` supplies additional privacy/security headers where supported; the HTML also supplies CSP and no-referrer metadata.
 
-## Remaining operator integration
+## Publish a real test manifest
 
-The local app does not yet publish its loading manifests to Supabase or print these online capability links. Existing local QR documents keep their current behavior. Next: add operator authentication and a protected publisher, upload finalized manifests, print the returned capability URL, then display shared pickup/delivery status in the desktop workspace. Do not place an operator credential or service-role key in this public website. No real shipment records have been created for this interface.
+1. Update the desktop app from GitHub and restart Python.
+2. In Supabase Authentication → Users, create your operator email/password account and confirm it. Run `supabase/bootstrap_operator.sql` after replacing its email placeholder. This creates workspace membership; a dashboard login alone is not an application operator account.
+3. In desktop Settings → Online shipments, sign in with that account. Credentials are sent to Supabase Auth over HTTPS through the local server. The password is not saved; the access token lives only in Python memory until expiry, sign-out or app restart.
+4. Finalise fresh pallets, then create a loading manifest under Truck loading. Select it and choose **Publish online**. Confirm the upload of this manifest's pallet/form contents.
+5. Print/reprint the manifest. Its QR now contains the hosted capability URL. Old paper copies still point to the local app and must be replaced. Pallet QRs remain revision-specific identifiers for the scanner.
+6. Open the new manifest QR on the phone. Scan the associated pallet QRs and confirm pickup/delivery. Use **Refresh online status** on the desktop to retrieve progress and release uncollected pallets after a partial pickup.
+
+This first integration supports fresh revision-1 pallets and unscanned ready manifests. Local scans are not merged. Reopening published pallets, online cancellation and migration of older local revisions are blocked pending the shared editing workflow. Publish only when the online unassigned pallets for that building match the selected manifest exactly. Existing online records are checked before retrying an uncertain publish; writes are not automatically retried. The operator app remains a local workspace with explicit publishing and refresh, rather than general multi-workstation synchronization.
+
+The capability URL is saved in the local workspace so manifest reprints preserve the same QR. Workspace backups therefore contain shipment access links; share backups only with authorized operators. Publishing does not upload the SAP import tables. Only the chosen manifest's pallet/form data is uploaded. Driver responses contain the limited shipment DTO.
 
 ## Checks
 

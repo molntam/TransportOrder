@@ -90,6 +90,8 @@ def apply_load_action(state, action, payload):
         event(state, 'Loading manifest created', load['id'], f"{load['building']}; {len(pallets)} pallets")
         return {'loadId': load['id'], 'print': {'kind': 'load', 'id': load['id'], 'revision': 1}}
     load = find(state, 'loads', payload.get('id'))
+    if load.get('online'):
+        raise InputError('This manifest is online. Use the driver website and Refresh online status; local changes would conflict.')
     if load['status'] != 'ready':
         raise InputError('This load is already closed. Its loading record is read-only.')
     if action == 'scan_load':
