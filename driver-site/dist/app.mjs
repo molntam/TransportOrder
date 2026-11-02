@@ -179,6 +179,6 @@ window.addEventListener('pagehide',stopCamera);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera();});
 window.addEventListener('hashchange',()=>{stopCamera();location.reload();});
 if(demo){$('#demo-banner').hidden=false;$('#demo-banner').textContent='DEMONSTRATION · Fictional shipment. Nothing is saved.';}
-if(!client)noShipment(location.hash?'This shipment link isn’t valid':'Open your shipment QR',location.hash?'Ask warehouse dispatch for the current loading manifest QR.':'Scan the QR on your loading manifest to view the shipment and start loading.');
+if(!client){if(location.hash)noShipment('This shipment link isn’t valid','Ask warehouse dispatch for the current loading manifest QR.');else{const {startPortal}=await import('./portal.mjs');startPortal();}}
 else await refresh(true);
 setInterval(()=>{if(client&&!document.hidden&&!$('#confirmation').open&&!busy&&!scanBusy)refresh(true);},30000);

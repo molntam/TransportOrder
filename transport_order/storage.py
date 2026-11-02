@@ -6,6 +6,7 @@ import tempfile
 import threading
 from pathlib import Path
 
+from .archive import local_day, archive_document
 from .domain import initial_state, apply_action, migrate_settings, event
 from .integrations.sap import InputError
 
@@ -56,12 +57,48 @@ class Store:
         self.state.setdefault("loads", [])
         self.state["settings"] = migrate_settings(self.state["settings"])
 
+    def rollover(self):
+        today = local_day()
+        day = self.state.get("workspaceDay")
+        legacy = day is None
+        if legacy:
+            dates = [local_day(r["createdAt"]) for key in ("forms", "pallets", "loads") for r in self.state.get(key, []) if r.get("createdAt")]
+            dates += [local_day(source["importedAt"]) for source in self.state["sources"].values() if source and source.get("importedAt")]
+            day = min(dates, default=today)
+        if day == today:
+            self.state["workspaceDay"] = today
+            return
+        folder = self.directory / "archive" / "workspaces"
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / f"{day}-r{self.state['revision']}.json"
+        if not target.exists():
+            temporary = target.with_suffix(".tmp")
+            temporary.write_text(json.dumps(self.state, ensure_ascii=False), encoding="utf-8")
+            temporary.replace(target)
+        candidate = initial_state()
+        if legacy:
+            current = lambda record: bool(record.get("createdAt")) and local_day(record["createdAt"]) == today
+            candidate["loads"] = [copy.deepcopy(r) for r in self.state["loads"] if current(r)]
+            pallet_ids = {r["id"] for r in self.state["pallets"] if current(r)}
+            pallet_ids.update(f["palletId"] for f in self.state["forms"] if current(f) and f.get("palletId"))
+            pallet_ids.update(p["id"] for load in candidate["loads"] for p in load["pallets"])
+            candidate["pallets"] = [copy.deepcopy(r) for r in self.state["pallets"] if r["id"] in pallet_ids]
+            candidate["forms"] = [copy.deepcopy(r) for r in self.state["forms"] if current(r) or r.get("palletId") in pallet_ids]
+            candidate["sources"] = {k: copy.deepcopy(v) if v and v.get("importedAt") and local_day(v["importedAt"]) == today else None for k,v in self.state["sources"].items()}
+        candidate["settings"] = copy.deepcopy(self.state["settings"])
+        candidate["workspaceDay"] = today
+        candidate["revision"] = self.state["revision"] + 1
+        self._write(candidate)
+        self.state = candidate
+
     def snapshot(self):
         with self.lock:
+            self.rollover()
             return copy.deepcopy(self.state)
 
     def apply(self, action, payload, expected_revision):
         with self.lock:
+            self.rollover()
             if expected_revision != self.state["revision"]:
                 raise ConflictError("Another window changed the data. Refresh before saving; your current form is still on screen.")
             candidate = copy.deepcopy(self.state)
@@ -69,6 +106,11 @@ class Store:
             candidate["revision"] += 1
             self._write(candidate)
             self.state = candidate
+            if result.get("print"):
+                try:
+                    archive_document(self, candidate, result["print"])
+                except OSError:
+                    result["archiveWarning"] = "Document saved, but its archive could not be written. Check disk space and reprint to retry."
             return result
 
     def _write(self, state):

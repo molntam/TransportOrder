@@ -74,6 +74,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/state":
                 self.send(200, {"state": state, "locations": LOCATIONS,
                     "diagnostics": source_diagnostics(state), "version": __version__,
+                    "archiveStatus": {"paired": bool(self.server.cloud.device_token), "pending": len(list((self.store.directory / "archive" / "outbox").glob("*.json"))), "error": self.server.archive_error},
                     "providers": [{k: getattr(p, k) for k in ("id", "label", "available", "description")} for p in PROVIDERS]})
             elif path == "/api/print":
                 try:
@@ -134,11 +135,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = resolve(self.store.snapshot(), payload.get("lines", []), payload.get("formId"), payload.get("destination"), payload.get("overrideReason", ""))
             elif path == "/api/import-preview":
                 result = parse_table(payload.get("kind"), payload.get("text", ""), payload.get("content"), payload.get("decimalMark", "."))
-            elif path == "/api/cloud-login":
-                result = self.server.cloud.login(str(payload.get("email", "")), str(payload.get("password", "")))
-            elif path == "/api/cloud-logout":
-                self.server.cloud.session = None
-                result = {"connected": False}
+            elif path == "/api/cloud-pair":
+                result = self.server.cloud.pair(payload.get("code", ""))
             elif path == "/api/cloud-publish":
                 result = self.server.cloud.publish(self.store, payload.get("id"))
             elif path == "/api/cloud-refresh":
@@ -169,8 +167,23 @@ class Handler(BaseHTTPRequestHandler):
 def create_server(store, token, port=0):
     server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, store=store, token=token))
     server.daemon_threads = True
-    server.cloud = Cloud()
+    server.cloud = Cloud(store.directory)
     server.print_service = PrintService(f"http://127.0.0.1:{server.server_port}")
+    def upload_archive():
+        while not server.archive_stop.wait(10):
+            try:
+                server.cloud.flush_archive(store.directory)
+                server.archive_error = ""
+            except Exception as exc:
+                server.archive_error = str(exc) if isinstance(exc, InputError) else "Archive upload failed; documents remain queued locally."
+    server.archive_error = ""
+    server.archive_stop = threading.Event()
+    close = server.server_close
+    def close_with_archive():
+        server.archive_stop.set()
+        close()
+    server.server_close = close_with_archive
+    threading.Thread(target=upload_archive, daemon=True).start()
     return server
 
 

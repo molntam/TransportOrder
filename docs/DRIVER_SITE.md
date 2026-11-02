@@ -1,45 +1,42 @@
-# Driver website
+# Tracking and driver website
 
-The login-free driver interface lives in `driver-site/dist`. The desktop operator app stays local for now. Connecting the GitHub repository to Supabase is optional; the website calls the existing Supabase RPC directly.
+Website: https://molntam.github.io/TransportOrder/
 
-Production: https://transportorder-driver.chicaron.chatgpt.site
+The static website is deployed by `.github/workflows/pages.yml` from `driver-site/dist` to GitHub Pages. Repository Settings → Pages uses **GitHub Actions**. GitHub hosts the interface; Supabase stores private shipment records. No shipment data, credentials or workstation keys are committed to GitHub.
 
-Demonstration: https://transportorder-driver.chicaron.chatgpt.site/?demo=1
+## Website login and tracking
 
-The demonstration uses 20 fictional pallets, resets on reload and never writes to Supabase. A valid shipment capability always takes precedence over demo mode.
+Open the website without a QR to log in with an existing Supabase Auth account. Membership of the Delivery Operations workspace is required; creating an account alone does not grant access. Authorized viewers, operators and administrators can search DN, HU, form, pallet and manifest references, including archived records. Results show the latest 200 matches; narrow a search to find older documents. Expand a result for DN/HU quantities and its recorded events. Status and timestamps come from the linked online loading manifest when available.
 
-## Driver flow
+Sessions live in browser memory and are lost on reload or sign-out. Passwords are not saved by the website. Tracking results omit driver bearer URLs. Names and vehicle registrations are visible only to authorized workspace members.
 
-1. Open the loading manifest QR, formatted as `https://transportorder-driver.chicaron.chatgpt.site/#<64-character random hex capability>`.
-2. Scan pallet QRs continuously, or enter codes with a handheld scanner. Correct pallets count once; wrong-building, foreign and outdated pallet codes are rejected.
-3. Confirm pickup with driver name and vehicle registration. Partial pickup requires a reason. Uncollected pallets remain available for a later truck.
-4. At the destination, confirm the building, receiver and physical arrival.
+## Pair a workstation once
 
-The page shows shipment progress, pallet contents, DNs, HUs and quantities. Search accepts pallet IDs, DNs and HUs. Scans can be removed before pickup with a reason. The interface refreshes while visible and asks for another review if it detects a shipment change during confirmation.
+1. Log in on the website using an operator/admin account.
+2. Choose **Pair a workstation**, name the workstation and generate a code.
+3. In desktop **Settings → Online shipments**, paste the code and choose **Pair workstation**.
+4. No app login is needed after pairing. The code lasts one year and can be revoked from the same user's website pairing list. Removing the owner's operator membership also disables their devices.
 
-## Access and deployment
+The code is a private publishing credential, not a public API key. It grants only pallet publishing, manifest creation/link recovery, archive upload and bounded reconciliation reads within the owner's workspace. It cannot manage members or dock slots. Windows stores the key encrypted with the current Windows user's DPAPI; other platforms use a separate owner-readable file under the local data directory. It is excluded from workspace exports and never returned by the local state API. Pair each workstation separately.
 
-The capability grants access to one manifest; treat the QR like a private shipment document. The backend checks expiry, revocation and document revisions. Default capability lifetime is seven days. No driver account is required. The token is kept in the URL fragment and request body, never a request URL or browser storage. Driver names and registrations are sent only when confirming the shipment.
+## Publish and scan
 
-`config.mjs` contains only the Supabase URL and public publishable key. It must never contain a service-role key. The UI calls only `transport_driver`; anonymous users have no direct table access. See [Supabase setup](SUPABASE.md).
+Finalise fresh pallets, create a loading manifest, select it and choose **Publish online**. Then print/reprint the manifest. Its QR uses `https://molntam.github.io/TransportOrder/#<64-character random capability>`.
 
-All assets are self-hosted. Camera access starts only after the driver presses Start camera and requires HTTPS or localhost. Permission denial leaves manual scanning available. Camera streams stop when the dialog closes, the page hides or the link becomes unavailable. Real phone camera capture still needs device acceptance testing.
+Drivers do not log in. The capability grants access to one manifest, expires after seven days and is checked for revocation and revision changes. Scan pallet QRs continuously, or use manual/scanner input. Duplicate scans count once; wrong destinations and outdated pallet revisions are rejected. Partial pickup requires a reason. Uncollected pallets remain ready for another truck. Confirm arrival and receiver at delivery. Desktop **Refresh online status** retrieves phone progress.
 
-`.openai/hosting.json` identifies the existing public Sites project. Deploy `dist` as static assets. Preserve fragment URLs. `_headers` supplies additional privacy/security headers where supported; the HTML also supplies CSP and no-referrer metadata.
+Camera capture requires HTTPS and a user click on Start camera. Permission denial leaves manual entry available. The scanner does not focus a text field automatically; form inputs are at least 16px to avoid iOS focus zoom. Physical iOS/Opera GX camera testing remains a device acceptance check.
 
-## Publish a real test manifest
+Old paper copies keep their original URL and must be reprinted. Previously saved online manifests reprint their stored link; create a new manifest for the GitHub URL. Existing local scans are not merged. The first publishing integration supports fresh revision-1 pallets and explicit selected-pallet membership. Published pallet reopening, older revision migration and online cancellation remain deferred.
 
-1. Update the desktop app from GitHub and restart Python.
-2. In Supabase Authentication → Users, create your operator email/password account and confirm it. Run `supabase/bootstrap_operator.sql` after replacing its email placeholder. This creates workspace membership; a dashboard login alone is not an application operator account.
-3. In desktop Settings → Online shipments, sign in with that account. Credentials are sent to Supabase Auth over HTTPS through the local server. The password is not saved; the access token lives only in Python memory until expiry, sign-out or app restart.
-4. Finalise fresh pallets, then create a loading manifest under Truck loading. Select it and choose **Publish online**. Confirm the upload of this manifest's pallet/form contents.
-5. Print/reprint the manifest. Its QR now contains the hosted capability URL. Old paper copies still point to the local app and must be replaced. Pallet QRs remain revision-specific identifiers for the scanner.
-6. Open the new manifest QR on the phone. Scan the associated pallet QRs and confirm pickup/delivery. Use **Refresh online status** on the desktop to retrieve progress and release uncollected pallets after a partial pickup.
+## Daily desktop workspace and archive
 
-This first integration supports fresh revision-1 pallets and unscanned ready manifests. Local scans are not merged. Reopening published pallets, online cancellation and migration of older local revisions are blocked pending the shared editing workflow. Publish only when the online unassigned pallets for that building match the selected manifest exactly. Existing online records are checked before retrying an uncertain publish; writes are not automatically retried. The operator app remains a local workspace with explicit publishing and refresh, rather than general multi-workstation synchronization.
+The active desktop resets at the start of a new Europe/Amsterdam calendar day, on the next state read/action. A running UI checks once a minute. Settings and the workstation pairing remain; the previous day's forms, pallets, manifests, events and SAP infeed leave the active workspace. A complete JSON copy is written successfully under `TransportOrderData/archive/workspaces` before the reset. If archiving fails, the old workspace is retained.
 
-The capability URL is saved in the local workspace so manifest reprints preserve the same QR. Workspace backups therefore contain shipment access links; share backups only with authorized operators. Publishing does not upload the SAP import tables. Only the chosen manifest's pallet/form data is uploaded. Driver responses contain the limited shipment DTO.
+Print-and-keep-open, finalisation and manifest creation generate local printable HTML copies under `archive/documents` and immutable revision snapshots under `archive/outbox`. A paired running desktop uploads queued snapshots to Supabase every ten seconds, then moves successful entries to `archive/uploaded`. Failed uploads stay queued. Settings displays pending count and errors. Publishing also archives the online manifest mapping. Reprinting retries local archiving. SharePoint is out of scope.
+
+The desktop front page counts distinct infeed HUs not yet assigned to a non-removed pallet form. The count uses the current SAP infeed, not an inferred count from old shipments.
 
 ## Checks
 
-Run `npm run test:driver`, `npm run test:database`, `node tests/ui-smoke.cjs`, and `python -m unittest discover -s tests`. Browser checks cover the demonstration workflow and responsive phone layout; database tests exercise the real RPC permissions and transitions.
+Run `python -m unittest discover -s tests -q`, `node tests/ui-smoke.cjs`, `npm run test:driver` and `npm run test:database`. PostgreSQL tests cover membership isolation, device restrictions/revocation, immutable archives, search, token redaction and driver flows. Local tests cover archive retry and rollover preservation. Live user password sign-in and physical camera capture require user/device testing.

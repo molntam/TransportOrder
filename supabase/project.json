@@ -6,5 +6,11 @@
   "workspaceId": "111fb839-a913-4c34-ae02-1c1228f35f9c",
   "deployedSchema": "20261101200346",
   "deploymentMethod": "dashboard",
-  "migrationHistoryRecorded": false
+  "migrationHistoryRecorded": false,
+  "additionalMigrations": [
+    "20261102114216",
+    "20261102114838",
+    "20261102115353"
+  ],
+  "additionalDeploymentMethod": "MCP apply_migration"
 }

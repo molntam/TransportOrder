@@ -61,6 +61,7 @@ async function main() {
   const context = vm.createContext({document,crypto:require("node:crypto").webcrypto,sessionStorage,console,URLSearchParams,structuredClone,Intl,Date,Number,String,Set,Map,Blob,URL,
     location:{hash:"#session=smoke-test-session"},history:{replaceState(){}},window:{addEventListener(){},matchMedia(){return {matches:false,addEventListener(){}};}},
     setTimeout:(fn,ms)=>setTimeout(fn,ms).unref(),clearTimeout,
+    setInterval:(fn,ms)=>setInterval(fn,ms).unref(),clearInterval,
     fetch:(url,options)=>{
       if(url==="/api/print-job"){
         const request=JSON.parse(options.body);printRequests.push(request);

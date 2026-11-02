@@ -72,12 +72,11 @@ class CloudTests(unittest.TestCase):
         self.assertEqual(self.calls.count('create_manifest'), 1)
         self.assertIn('rotate_driver_link', self.calls)
 
-    def test_do_not_combine_unrelated_online_pallets(self):
+    def test_other_ready_pallets_are_excluded_from_selected_manifest(self):
         self.records.append({'id': 'P-OTHER', 'status': 'finalised', 'destination': {'building': 'Building 21'}})
-        with self.assertRaisesRegex(InputError, 'Other online pallets'):
-            self.publish()
-        self.assertNotIn('create_manifest', self.calls)
-        self.assertNotIn('online', self.store.state['loads'][0])
+        self.publish()
+        self.assertIn('create_manifest', self.calls)
+        self.assertEqual({r['pallet_id'] for r in self.memberships}, {self.pid})
 
     def test_refresh_records_partial_pickup_without_collecting_leftovers(self):
         self.publish()
@@ -87,13 +86,16 @@ class CloudTests(unittest.TestCase):
         self.assertEqual(self.store.state['loads'][0]['status'], 'partial')
         self.assertEqual(self.store.state['pallets'][0]['collectedAt'], 'pickup')
 
-    def test_login_requires_operator_membership_and_password_is_not_stored(self):
-        with patch.object(self.cloud, 'request', return_value={'access_token': 'secret', 'expires_in': 3600, 'user': {'id': 'user'}}), patch.object(self.cloud, 'rows', return_value=[]):
-            with self.assertRaisesRegex(InputError, 'operator membership'):
-                self.cloud.login('operator@example.com', 'password')
-        self.assertIsNone(self.cloud.session)
-        with self.assertRaisesRegex(InputError, 'Sign in'):
-            self.cloud.rpc('create_manifest', {})
+    def test_pairing_is_verified_and_persisted_without_login(self):
+        self.cloud = Cloud(self.tmp.name)
+        with patch.object(self.cloud, 'request', return_value=[]) as request:
+            self.cloud.pair('b' * 64)
+            self.assertEqual(request.call_args.args[1]['p_action'], 'read_records')
+        self.assertEqual(Cloud(self.tmp.name).device_token, 'b' * 64)
+        with self.assertRaisesRegex(InputError, '64-character'):
+            self.cloud.pair('bad')
+        with self.assertRaisesRegex(InputError, 'Pair this workstation'):
+            Cloud().rpc('create_manifest', {})
 
     def test_local_scan_and_reopened_revision_cannot_be_published(self):
         self.store.state['loads'][0]['pallets'][0]['revision'] = 2

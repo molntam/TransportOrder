@@ -1,31 +1,34 @@
 import copy
 import json
 import re
+import os
+from pathlib import Path
 import threading
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+from .device_key import protect
 from .domain import InputError, find, event
 
 URL = 'https://cwwpuapvgwoelhpwserm.supabase.co'
 KEY = 'sb_publishable_vrv6VwGmtlhnSqX2q2F20g_HO4vdj2R'
 WORKSPACE = '111fb839-a913-4c34-ae02-1c1228f35f9c'
-SITE = 'https://transportorder-driver.chicaron.chatgpt.site/'
+SITE = 'https://molntam.github.io/TransportOrder/'
 
 
 class Cloud:
-    def __init__(self):
+    def __init__(self, directory=None):
+        self.key_path = Path(directory) / "publisher-key" if directory else None
+        self.device_token = protect(self.key_path.read_text().strip(), decrypt=True) if self.key_path and self.key_path.exists() else None
         self.session = None
         self.lock = threading.RLock()
 
     def request(self, path, body=None, authenticated=True):
         headers = {'apikey': KEY, 'Content-Type': 'application/json'}
         if authenticated:
-            if not self.session or self.session['expires_at'] <= time.time():
-                raise InputError('Sign in under Settings → Online shipments. Your session lasts until expiry or app restart.')
-            headers['Authorization'] = 'Bearer ' + self.session['access_token']
+            raise InputError('Use workstation pairing from the tracking website, then Settings → Pair workstation.')
         request = Request(URL + path, data=json.dumps(body).encode() if body is not None else None, headers=headers)
         try:
             with urlopen(request, timeout=30) as response:
@@ -37,28 +40,39 @@ class Cloud:
         except (URLError, TimeoutError, OSError, ValueError):
             raise InputError('Online response could not be confirmed. No automatic retry was made. Retry publishing to reconcile the saved cloud records.') from None
 
-    def login(self, email, password):
+    def pair(self, token):
+        token = str(token).strip()
+        if not re.fullmatch('[a-f0-9]{64}', token):
+            raise InputError('Paste the 64-character workstation code from the tracking website.')
         with self.lock:
-            self.session = None
-            result = self.request('/auth/v1/token?grant_type=password', {'email': email, 'password': password}, False)
-            self.session = {'access_token': result['access_token'], 'expires_at': time.time() + result['expires_in']}
-            members = self.rows('to_members', user_id=result['user']['id'])
-            if not any(m['role'] in ('admin', 'operator') for m in members):
-                self.session = None
-                raise InputError('This account needs operator membership. Complete supabase/bootstrap_operator.sql first.')
-            return {'connected': True}
+            self.request('/rest/v1/rpc/transport_device', {'p_token':token,'p_action':'read_records','p_payload':{'table':'to_pallets','filters':{},'offset':0}}, False)
+            if self.key_path:
+                descriptor = os.open(self.key_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+                with os.fdopen(descriptor, 'w') as handle:
+                    handle.write(protect(token))
+            self.device_token = token
+        return {'paired': True}
 
     def rpc(self, action, payload):
-        return self.request('/rest/v1/rpc/transport_operator', {'p_workspace': WORKSPACE, 'p_action': action, 'p_payload': payload})
+        if not self.device_token:
+            raise InputError('Pair this workstation once under Settings. No operator login is needed in the app.')
+        return self.request('/rest/v1/rpc/transport_device', {'p_token':self.device_token,'p_action':action,'p_payload':payload}, False)
 
     def rows(self, table, **filters):
-        query = {'workspace_id': 'eq.' + WORKSPACE, **{k: 'eq.' + str(v) for k, v in filters.items()}}
         result = []
         while True:
-            page = self.request('/rest/v1/' + table + '?' + urlencode({**query, 'limit': 1000, 'offset': len(result)}))
+            page = self.rpc('read_records', {'table':table,'filters':filters,'offset':len(result)})
             result.extend(page)
             if len(page) < 1000:
                 return result
+
+    def flush_archive(self, directory):
+        folder = Path(directory) / 'archive'
+        uploaded = folder / 'uploaded'
+        uploaded.mkdir(parents=True, exist_ok=True)
+        for path in sorted((folder / 'outbox').glob('*.json'))[:20]:
+            self.rpc('archive_document', json.loads(path.read_text(encoding='utf-8')))
+            path.replace(uploaded / path.name)
 
     def publish(self, store, load_id):
         with self.lock, store.lock:
@@ -98,9 +112,9 @@ class Cloud:
             else:
                 reserved = {r['pallet_id'] for r in active}
                 available = {p['id'] for p in self.rows('to_pallets') if p['status'] == 'finalised' and not p.get('collected_at') and p['id'] not in reserved and ' '.join(p['destination']['building'].split()).casefold() == ' '.join(load['building'].split()).casefold()}
-                if available != expected:
-                    raise InputError('Other online pallets are ready for this building. This test requires the online and selected local manifest contents to match exactly.')
-                result = self.rpc('create_manifest', {'building': load['building']})
+                if not expected.issubset(available):
+                    raise InputError('Some selected pallets are no longer available online. Refresh the shipment status before publishing.')
+                result = self.rpc('create_manifest', {'building': load['building'], 'palletIds':sorted(expected)})
             token = result['driverToken']
             if not re.fullmatch('[a-f0-9]{64}', token):
                 raise InputError('Online service returned an invalid link.')
@@ -109,6 +123,8 @@ class Cloud:
             state['revision'] += 1
             store._write(state)
             store.state = state
+            from .archive import archive_document
+            archive_document(store, state, {'kind':'load','id':load_id,'revision':load['revision']})
             return {'url': load['online']['url']}
 
     def refresh(self, store, load_id):

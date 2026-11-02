@@ -80,6 +80,8 @@ class PrintService:
             state = store.snapshot()
             kind = payload.get("kind")
             model = document_model(state, kind, payload.get("id"), int(payload.get("revision", 0)), self.base_url)
+            from .archive import archive_document
+            archive_document(store, state, {"kind":kind,"id":payload.get("id"),"revision":int(payload.get("revision",0))})
             copies = int(payload.get("copies", state["settings"]["manifestCopies" if kind == "load" else "finalCopies" if kind == "pallet" else "openCopies"]))
             if copies not in range(1, 6):
                 raise InputError("Choose between 1 and 5 copies.")
