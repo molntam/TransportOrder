@@ -55,6 +55,10 @@ class Store:
             except (ValueError, OSError) as exc:
                 raise RuntimeError(f"Cannot read {self.path}. The file has been preserved. Restore a valid backup before restarting.") from exc
         self.state.setdefault("loads", [])
+        for load in self.state["loads"]:
+            online = load.get("online", {})
+            if online.get("url", "").startswith("https://transportorder-driver.chicaron.chatgpt.site/"):
+                online["url"] = online["url"].replace("https://transportorder-driver.chicaron.chatgpt.site/", "https://molntam.github.io/TransportOrder/", 1)
         self.state["settings"] = migrate_settings(self.state["settings"])
 
     def rollover(self):

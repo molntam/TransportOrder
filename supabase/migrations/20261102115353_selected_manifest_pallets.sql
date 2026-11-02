@@ -154,4 +154,3 @@ begin
  end if;
  raise exception 'Unknown operator action';
 end $$;
-

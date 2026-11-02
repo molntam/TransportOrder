@@ -27,7 +27,7 @@ Drivers do not log in. The capability grants access to one manifest, expires aft
 
 Camera capture requires HTTPS and a user click on Start camera. Permission denial leaves manual entry available. The scanner does not focus a text field automatically; form inputs are at least 16px to avoid iOS focus zoom. Physical iOS/Opera GX camera testing remains a device acceptance check.
 
-Old paper copies keep their original URL and must be reprinted. Previously saved online manifests reprint their stored link; create a new manifest for the GitHub URL. Existing local scans are not merged. The first publishing integration supports fresh revision-1 pallets and explicit selected-pallet membership. Published pallet reopening, older revision migration and online cancellation remain deferred.
+Old paper copies keep their original URL and must be reprinted. Previously saved online manifests are migrated to the GitHub URL on app restart, preserving their existing capability token. Reprint paper copies to use the new address. Existing local scans are not merged. The first publishing integration supports fresh revision-1 pallets and explicit selected-pallet membership. Published pallet reopening, older revision migration and online cancellation remain deferred.
 
 ## Daily desktop workspace and archive
 
