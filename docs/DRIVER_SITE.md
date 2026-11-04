@@ -8,16 +8,13 @@ The static website is deployed by `.github/workflows/pages.yml` from `driver-sit
 
 Open the website without a QR to log in with an existing Supabase Auth account. Membership of the Delivery Operations workspace is required; creating an account alone does not grant access. Authorized viewers, operators and administrators can search DN, HU, form, pallet and manifest references, including archived records. Results show the latest 200 matches; narrow a search to find older documents. Expand a result for DN/HU quantities and its recorded events. Status and timestamps come from the linked online loading manifest when available.
 
-Sessions live in browser memory and are lost on reload or sign-out. Passwords are not saved by the website. Tracking results omit driver bearer URLs. Names and vehicle registrations are visible only to authorized workspace members.
+The browser saves the tracking session and renews it when needed. Use **Sign out** on a shared browser. Search keeps the highest matching document for each shipment and leaves unrelated matches visible.
 
-## Pair a workstation once
+## Authorize a workstation
 
-1. Log in on the website using an operator/admin account.
-2. Choose **Pair a workstation**, name the workstation and generate a code.
-3. In desktop **Settings → Online shipments**, paste the code and choose **Pair workstation**.
-4. No app login is needed after pairing. The code lasts one year and can be revoked from the same user's website pairing list. Removing the owner's operator membership also disables their devices.
+Sign in with an operator account in desktop **Settings → Online shipments**. The app exchanges the sign-in for a revocable workstation credential and saves it using the existing workstation storage. The password stays out of local storage.
 
-The code is a private publishing credential, not a public API key. It grants only pallet publishing, manifest creation/link recovery, archive upload and bounded reconciliation reads within the owner's workspace. It cannot manage members or dock slots. Windows stores the key encrypted with the current Windows user's DPAPI; other platforms use a separate owner-readable file under the local data directory. It is excluded from workspace exports and never returned by the local state API. Pair each workstation separately.
+The driver site remembers up to 20 recently opened manifests for seven days. **Return to your shipment** lists saved stops. Drivers can scan another manifest and switch between stops. A pallet from another saved manifest is recorded against that manifest. Dispatch must assign loose pallets before drivers can scan them.
 
 ## Publish and scan
 

@@ -25,9 +25,11 @@ class Cloud:
         self.session = None
         self.lock = threading.RLock()
 
-    def request(self, path, body=None, authenticated=True):
+    def request(self, path, body=None, authenticated=True, access_token=None):
         headers = {'apikey': KEY, 'Content-Type': 'application/json'}
-        if authenticated:
+        if access_token:
+            headers['Authorization'] = 'Bearer ' + access_token
+        elif authenticated:
             raise InputError('Use workstation pairing from the tracking website, then Settings → Pair workstation.')
         request = Request(URL + path, data=json.dumps(body).encode() if body is not None else None, headers=headers)
         try:
@@ -39,6 +41,14 @@ class Cloud:
             raise InputError('The online operation was rejected. Refresh online status before retrying; check that these pallets are not already reserved.') from None
         except (URLError, TimeoutError, OSError, ValueError):
             raise InputError('Online response could not be confirmed. No automatic retry was made. Retry publishing to reconcile the saved cloud records.') from None
+
+    def login(self, email, password):
+        session = self.request('/auth/v1/token?grant_type=password',
+                               {'email': email.strip(), 'password': password}, False)
+        device = self.request('/rest/v1/rpc/transport_pair_device',
+                              {'p_workspace': WORKSPACE, 'p_label': 'TransportOrder desktop'},
+                              access_token=session['access_token'])
+        return self.pair(device['token'])
 
     def pair(self, token):
         token = str(token).strip()
@@ -55,7 +65,7 @@ class Cloud:
 
     def rpc(self, action, payload):
         if not self.device_token:
-            raise InputError('Pair this workstation once under Settings. No operator login is needed in the app.')
+            raise InputError('Sign in under Settings → Online shipments.')
         return self.request('/rest/v1/rpc/transport_device', {'p_token':self.device_token,'p_action':action,'p_payload':payload}, False)
 
     def rows(self, table, **filters):

@@ -1,3 +1,4 @@
+import {trip, tripLinks, rememberShipment, manifestToken} from './trip.mjs';
 import config from './config.mjs';
 import {escapeHtml as esc,parseToken,normalizeScan,totals,filterPallets,validatePickup,friendlyError,createClient,createDemo} from './domain.mjs';
 const $=s=>document.querySelector(s);
@@ -31,7 +32,7 @@ function render() {
     <section class="card contents"><div class="section-heading contents-heading"><div><h2>Pallets & deliveries</h2><p>Check the DN and HU on each pallet.</p></div><button class="text-link" data-action="toggle-view">${view==='contents'?'Compact view':'View all details'} ${icon('chevron')}</button></div><label class="search"><span class="sr-only">Search pallet, DN or HU</span>${icon('search')}<input id="pallet-search" value="${esc(query)}" placeholder="Search pallet, DN or HU" autocomplete="off"></label><div class="filters" role="group" aria-label="Pallet filter">${[['all',`All (${c.planned})`],['scanned',`${ready?'Scanned':'Collected'} (${c.scanned})`],['remaining',`${ready?'Remaining':'Not collected'} (${c.planned-c.scanned})`]].map(([key,label])=>`<button data-action="filter" data-filter="${key}" class="${filter===key?'active':''}">${label}</button>`).join('')}</div><div id="pallet-list">${renderPallets()}</div></section></div>
     <aside class="side-column"><section class="card action-card"><span class="eyebrow">${ready?'LOADING CHECK':delivered?'DELIVERY COMPLETE':'NEXT STEP'}</span><h2>${ready?'Scan before you load':delivered?'Shipment delivered':'Confirm arrival'}</h2><p>${ready?'Scan every pallet going onto your truck. You can leave pallets behind if they don’t fit.':delivered?'The collected pallets are confirmed delivered. The warehouse can see the updated status.':'At the destination, confirm the building and who received the pallets.'}</p><div class="progress-number"><strong>${progress}</strong><span>/ ${ready?c.planned:c.collected}</span><small>${ready?'pallets scanned':delivered?'pallets delivered':'pallets collected'}</small></div><progress value="${progress}" max="${Math.max(1,ready?c.planned:c.collected)}" aria-label="${ready?'Scanning':'Shipment'} progress"></progress>
     ${ready?`<button class="btn primary wide scan-button" data-action="open-scanner">${icon('scan')}${c.scanned?'Continue scanning':'Scan pallets'}${icon('arrow')}</button><button class="btn secondary wide" data-action="pickup" ${!c.scanned?'disabled':''}>Confirm pickup · ${c.scanned} pallets</button><div class="helper">${icon('info')}Only scanned pallets will be marked collected.</div>`:delivered?`<div class="success-note">${icon('check')}Delivery recorded ${formatDate(shipment.deliveredAt)}</div>`:`<button class="btn primary wide" data-action="delivery">${icon('pin')}Confirm delivery${icon('arrow')}</button><div class="helper">${icon('info')}Confirm only when the pallets have arrived at ${esc(shipment.building)}.</div>`}
-    ${!ready&&c.collected<c.planned?`<div class="partial-note"><b>${c.planned-c.collected} pallets stayed behind</b><span>They remain available for another truck.</span></div>`:''}</section><section class="support-card">${icon('info')}<div><b>Something doesn’t match?</b><p>Check with warehouse dispatch before moving the pallet.</p></div></section><p class="last-updated">Status checked ${lastRefresh?lastRefresh.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'just now'}</p></aside></div>`;
+    ${!ready&&c.collected<c.planned?`<div class="partial-note"><b>${c.planned-c.collected} pallets stayed behind</b><span>They remain available for another truck.</span></div>`:''}</section><section class="support-card">${icon('info')}<div><b>Something doesn’t match?</b><p>Check with warehouse dispatch before moving the pallet.</p></div></section><p class="last-updated">Status checked ${lastRefresh?lastRefresh.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'just now'}</p></aside></div>${token ? tripLinks(token) + '<button class="btn secondary" data-action="open-scanner">Scan another manifest or pallet</button>' : ''}`;
 }
 function renderPallets() {
   const ps=filterPallets(shipment,query,filter),ready=shipment.status==='ready';
@@ -50,7 +51,7 @@ function linkUnavailable(error) {
 function toast(text) {$('#toast').textContent=text;$('#toast').classList.add('visible');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').classList.remove('visible'),4500);}
 async function refresh(quiet=false) {
   if(!client||busy)return;
-  try {shipment=await client();lastRefresh=new Date();errorMessage='';render();if($('#scanner').open)updateScanner();if(!quiet)toast('Shipment status updated.');}
+  try {shipment=await client();if(token)rememberShipment(token,shipment);lastRefresh=new Date();errorMessage='';render();if($('#scanner').open)updateScanner();if(!quiet)toast('Shipment status updated.');}
   catch(error){errorMessage=friendlyError(error);if(linkUnavailable(error))return;if(shipment)render();else noShipment('Shipment unavailable',errorMessage,true);}
 }
 async function mutate(action,payload) {
@@ -59,7 +60,7 @@ async function mutate(action,payload) {
   try {shipment=await client(action,payload);lastRefresh=new Date();errorMessage='';render();return shipment;}
   catch(error){
     if(linkUnavailable(error))throw error;
-    try {shipment=await client();lastRefresh=new Date();render();}catch(refreshError){linkUnavailable(refreshError);}
+    try {shipment=await client();if(token)rememberShipment(token,shipment);lastRefresh=new Date();render();}catch(refreshError){linkUnavailable(refreshError);}
     throw error;
   } finally {busy=false;const refreshButton=$('[data-action="refresh"]');if(refreshButton)refreshButton.disabled=false;}
 }
@@ -72,19 +73,47 @@ function updateScanner() {
   const c=totals(shipment);$('#scan-count').textContent=c.scanned;$('#scan-total').textContent='/ '+c.planned;
   $('#scan-progress').value=c.scanned;$('#scan-progress').max=c.planned;
   $('#scanner-pickup').textContent=`Confirm pickup · ${c.scanned} pallets`;$('#scanner-pickup').disabled=!c.scanned||shipment.status!=='ready'||busy;
-  if(shipment.status!=='ready'){stopCamera();feedback('This pickup has been confirmed. Close the scanner to view the current status.');}
+  if(shipment.status!=='ready' && !scanMessage)feedback('Scan a manifest for your next stop.');
   if(demo&&$('#demo-next'))$('#demo-next').disabled=c.scanned===c.planned;
 }
 function openScanner() {
-  if(shipment.status!=='ready')return;
   stopCamera();scanMessage='Ready to scan. Start the camera or use a connected QR scanner.';scanError=false;
-  const el=$('#scanner');el.innerHTML=`<div class="modal-head"><div><span class="eyebrow">${esc(shipment.building)}</span><h2 id="scanner-title" tabindex="-1" autofocus>Scan your pallets</h2></div><button class="icon-button" data-action="close-scanner" aria-label="Close scanner">${icon('close')}</button></div><div class="scanner-body"><div class="scanner-tally"><div><strong id="scan-count">0</strong><span id="scan-total"></span><small>pallets scanned</small></div><span class="scanner-tag">${icon('box')}Loading check</span></div><progress id="scan-progress" value="0" max="1" aria-label="Pallet scan progress"></progress><div class="camera-viewport"><video id="camera" playsinline muted></video><div class="camera-placeholder" id="camera-placeholder">${icon('scan')}<b>Camera ready when you are</b><span>Keep each QR steady inside the frame.</span></div><div class="camera-guide" hidden id="camera-guide"></div></div><div class="camera-actions"><button class="btn primary" id="start-camera" data-action="start-camera">${icon('scan')}Start camera</button><button class="btn secondary" data-action="stop-camera">Stop camera</button></div><div id="scan-feedback" class="scanner-feedback" aria-live="polite"></div><details class="manual-entry" ${demo?'open':''}><summary>Use a QR scanner or enter a code</summary><form id="scan-form"><label for="scan-input">Pallet QR code</label><div class="input-button"><input id="scan-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Scan a pallet QR, then press Enter"><button class="btn secondary" type="submit">Check</button></div></form></details>${demo?`<div class="demo-tools"><b>Demonstration controls</b><div><button class="btn secondary" id="demo-next" data-action="demo-scan">Scan next demo pallet</button><button class="text-link" data-action="demo-wrong">Try a wrong destination</button></div></div>`:''}</div><div class="modal-foot"><button class="btn secondary" data-action="close-scanner">Close scanner</button><button class="btn primary" id="scanner-pickup" data-action="pickup">Confirm pickup</button></div>`;
+  const el=$('#scanner');el.innerHTML=`<div class="modal-head"><div><span class="eyebrow">${esc(shipment.building)}</span><h2 id="scanner-title" tabindex="-1" autofocus>Scan a pallet or manifest</h2></div><button class="icon-button" data-action="close-scanner" aria-label="Close scanner">${icon('close')}</button></div><div class="scanner-body"><div class="scanner-tally"><div><strong id="scan-count">0</strong><span id="scan-total"></span><small>pallets scanned</small></div><span class="scanner-tag">${icon('box')}Loading check</span></div><progress id="scan-progress" value="0" max="1" aria-label="Pallet scan progress"></progress><div class="camera-viewport"><video id="camera" playsinline muted></video><div class="camera-placeholder" id="camera-placeholder">${icon('scan')}<b>Camera ready when you are</b><span>Keep each QR steady inside the frame.</span></div><div class="camera-guide" hidden id="camera-guide"></div></div><div class="camera-actions"><button class="btn primary" id="start-camera" data-action="start-camera">${icon('scan')}Start camera</button><button class="btn secondary" data-action="stop-camera">Stop camera</button></div><div id="scan-feedback" class="scanner-feedback" aria-live="polite"></div><details class="manual-entry" ${demo?'open':''}><summary>Use a QR scanner or enter a code</summary><form id="scan-form"><label for="scan-input">Pallet QR code</label><div class="input-button"><input id="scan-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Enter a pallet code or manifest link"><button class="btn secondary" type="submit">Check</button></div></form></details>${demo?`<div class="demo-tools"><b>Demonstration controls</b><div><button class="btn secondary" id="demo-next" data-action="demo-scan">Scan next demo pallet</button><button class="text-link" data-action="demo-wrong">Try a wrong destination</button></div></div>`:''}</div><div class="modal-foot"><button class="btn secondary" data-action="close-scanner">Close scanner</button><button class="btn primary" id="scanner-pickup" data-action="pickup">Confirm pickup</button></div>`;
   el.showModal();updateScanner();feedback(scanMessage);$('#scanner-title').focus({preventScroll:true});
 }
 async function scan(value) {
   if(scanBusy||busy)return;
   scanBusy=true;
-  try {const code=normalizeScan(value);const result=await mutate('scan',{code});updateScanner();const c=totals(result);feedback(result.duplicate?'Already scanned. This pallet is counted once.':`${c.scanned} of ${c.planned} pallets accepted.${c.scanned===c.planned?' All pallets scanned. Confirm pickup when loaded.':''}`);if(!result.duplicate)navigator.vibrate?.(70);if($('#scan-input'))$('#scan-input').value='';}
+  try {
+    const nextToken = manifestToken(value);
+    if (nextToken && !demo) {
+      await createClient(config, nextToken)();
+      if (nextToken !== token) location.hash = nextToken;
+      else feedback('This manifest is already open.');
+      return;
+    }
+    const code = normalizeScan(value);
+    const palletId = code.split(':')[2];
+    if (token && !shipment.pallets.some(pallet => pallet.id === palletId)) {
+      for (const stop of trip().filter(record => record.token !== token)) {
+        const other = createClient(config, stop.token);
+        const load = await other().catch(() => null);
+        if (!load || load.status !== 'ready' || !load.pallets.some(pallet => pallet.id === palletId)) continue;
+        await other('scan', {code});
+        location.hash = stop.token;
+        return;
+      }
+      feedback('This pallet is outside your saved manifests. Scan its manifest QR or ask dispatch to assign it.', true);
+      return;
+    }
+    const result = await mutate('scan', {code});
+    updateScanner();
+    const counts = totals(result);
+    feedback(result.duplicate ? 'Already scanned. This pallet is counted once.' :
+      `${counts.scanned} of ${counts.planned} pallets accepted.`);
+    if (!result.duplicate) navigator.vibrate?.(70);
+    if ($('#scan-input')) $('#scan-input').value = '';
+  }
   catch(error){feedback(error.message?.startsWith('Scan a pallet QR')?error.message:friendlyError(error),true);updateScanner();}
   finally {scanBusy=false;updateScanner();}
 }

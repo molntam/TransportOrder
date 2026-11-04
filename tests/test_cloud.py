@@ -94,7 +94,7 @@ class CloudTests(unittest.TestCase):
         self.assertEqual(Cloud(self.tmp.name).device_token, 'b' * 64)
         with self.assertRaisesRegex(InputError, '64-character'):
             self.cloud.pair('bad')
-        with self.assertRaisesRegex(InputError, 'Pair this workstation'):
+        with self.assertRaisesRegex(InputError, 'Sign in under Settings'):
             Cloud().rpc('create_manifest', {})
 
     def test_local_scan_and_reopened_revision_cannot_be_published(self):

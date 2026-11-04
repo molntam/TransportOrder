@@ -135,6 +135,8 @@ class Handler(BaseHTTPRequestHandler):
                 result = resolve(self.store.snapshot(), payload.get("lines", []), payload.get("formId"), payload.get("destination"), payload.get("overrideReason", ""))
             elif path == "/api/import-preview":
                 result = parse_table(payload.get("kind"), payload.get("text", ""), payload.get("content"), payload.get("decimalMark", "."))
+            elif path == "/api/cloud-login":
+                result = self.server.cloud.login(payload.get("email", ""), payload.get("password", ""))
             elif path == "/api/cloud-pair":
                 result = self.server.cloud.pair(payload.get("code", ""))
             elif path == "/api/cloud-publish":
