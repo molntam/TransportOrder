@@ -36,6 +36,16 @@ def check():
             assert result['rowCount'] == 3 and result['uniqueHus'] == 2
             assert page.get_by_role('grid').locator('tr').count() == 2
             print('Browser export collected all three CSV rows while only one item row was displayed.')
+            custom_fixture = fixture.replace('<table role="grid" hidden>', '<section id="custom-visual" hidden>').replace('</table>', '</section>')
+            custom_fixture = custom_fixture.replace('<tr>', '<div>').replace('</tr>', '</div>').replace('<th>', '<span>').replace('</th>', '</span>').replace('<td>', '<span>').replace('</td>', '</span>')
+            custom_fixture = custom_fixture.replace("querySelector('table')", "querySelector('#custom-visual')")
+            page.unroute('https://spotfire.asml.com/**')
+            page.route('https://spotfire.asml.com/**', lambda route: route.fulfill(body=custom_fixture, content_type='text/html'))
+            page.goto(DEFAULT_REPORT_URL)
+            result = parse_export(collect_export(page))
+            assert result['rowCount'] == 3 and result['uniqueHus'] == 2
+            print('Custom visualization export works without HTML table tags, grid roles or Spotfire container classes.')
+
 
             store = Store(folder)
             server = create_server(store, 'browser-test-session', 0)

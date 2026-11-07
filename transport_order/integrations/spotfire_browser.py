@@ -66,7 +66,7 @@ class SpotfireBrowser:
                 settings = self.store.snapshot()['settings']
                 context = playwright.chromium.launch_persistent_context(
                     str(self.store.directory / 'spotfire-browser-profile'),
-                    channel=settings['spotfireBrowser'], headless=False, accept_downloads=True,
+                    channel=settings['spotfireBrowser'], headless=False, accept_downloads=True, chromium_sandbox=True,
                     no_viewport=True, args=['--start-maximized'])
                 try:
                     if self.workspace_url:
@@ -165,7 +165,9 @@ def collect_export(page, progress=None):
     if grid.count() != 1:
         grid = selected.locator('[class*="sfc-visual-content"]').filter(has=header, visible=True)
     if grid.count() != 1:
-        raise InputError('Choose the Data Table Monitor table containing Handling unit.')
+        if header.count() != 1:
+            raise InputError('More than one Handling unit table is visible. Show only the Data Table Monitor table.')
+        grid = header
     step('export_menu')
     with page.expect_download(timeout=30000) as downloaded:
         grid.click(button='right')
