@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 from test_spotfire import sample
 from transport_order.integrations.spotfire import DEFAULT_REPORT_URL, parse_export
 from transport_order.integrations.spotfire_browser import collect_export
@@ -50,21 +50,21 @@ def check():
                 fixture_path.write_bytes(sample('WH-WEERT1A'))
                 app.locator('#spotfire-file').set_input_files(str(fixture_path))
                 app.get_by_role('button', name='Use Spotfire data', exact=True).wait_for(state='visible')
-                app.wait_for_function("document.querySelector('#spotfire-state').textContent.includes('2 HUs')")
+                expect(app.locator('#spotfire-state')).to_contain_text('2 HUs')
                 app.get_by_role('button', name='Create order', exact=True).click()
                 hu = app.locator('[data-line-field="hu"]').first
                 hu.fill('00001')
                 hu.press('Tab')
                 app.get_by_role('heading', name='Weert 1A — Scrap or Normal?').wait_for()
                 app.get_by_role('button', name='Scrap', exact=True).click()
-                app.wait_for_function("document.querySelector('[data-field=\"destination.department\"]').value === 'SCRAP'")
+                expect(app.locator('[data-field="destination.department"]')).to_have_value('SCRAP')
                 assert app.locator('[data-line-field="qty"]').first.input_value() == '5.0'
                 assert app.locator('[data-line-field="dn"]').first.input_value() == '000901'
                 assert '2 unprocessed HUs' in app.locator('#open-hu-count').inner_text()
                 app.locator('[data-action="save"][data-intent="draft"]').click()
                 app.locator('#navigation').get_by_role('button', name='Data infeed', exact=True).click()
                 app.get_by_role('button', name='Use SAP paste/import', exact=True).click()
-                app.wait_for_function("document.querySelector('#source-health').textContent.includes('SAP data needed')")
+                expect(app.locator('#source-health')).to_contain_text('SAP data needed')
                 assert store.snapshot()['settings']['dataSource'] == 'sap'
                 assert not errors, errors
                 print('Browser UI imported UTF-16, required Scrap/Normal, filled DN/quantity, saved draft and switched to SAP.')
