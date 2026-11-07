@@ -45,7 +45,7 @@ def check():
                 app = browser.new_page(viewport={'width': 1440, 'height': 1000})
                 app.on('pageerror', lambda error: errors.append(str(error)))
                 app.goto(f'http://127.0.0.1:{server.server_port}/#session=browser-test-session')
-                app.get_by_role('button', name='Data infeed', exact=True).click()
+                app.locator('#navigation').get_by_role('button', name='Data infeed', exact=True).click()
                 fixture_path = Path(folder) / 'monitor.csv'
                 fixture_path.write_bytes(sample('WH-WEERT1A'))
                 app.locator('#spotfire-file').set_input_files(str(fixture_path))
@@ -62,7 +62,7 @@ def check():
                 assert app.locator('[data-line-field="dn"]').first.input_value() == '000901'
                 assert '2 unprocessed HUs' in app.locator('#open-hu-count').inner_text()
                 app.locator('[data-action="save"][data-intent="draft"]').click()
-                app.get_by_role('button', name='Data infeed', exact=True).click()
+                app.locator('#navigation').get_by_role('button', name='Data infeed', exact=True).click()
                 app.get_by_role('button', name='Use SAP paste/import', exact=True).click()
                 app.wait_for_function("document.querySelector('#source-health').textContent.includes('SAP data needed')")
                 assert store.snapshot()['settings']['dataSource'] == 'sap'

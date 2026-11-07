@@ -53,7 +53,7 @@ class SpotfireBrowser:
                 context = playwright.chromium.launch_persistent_context(
                     str(self.store.directory / 'spotfire-browser-profile'),
                     channel=settings['spotfireBrowser'], headless=False, accept_downloads=True,
-                    viewport=None, args=['--start-maximized'])
+                    no_viewport=True, args=['--start-maximized'])
                 try:
                     if self.workspace_url:
                         app_page = context.pages[0] if context.pages else context.new_page()
@@ -94,10 +94,17 @@ class SpotfireBrowser:
                             self.update('attention', 'Waiting for sign-in or table export. Open Data Table Monitor and check Export table access. The last valid data remains loaded.')
                         deadline = time.monotonic() + 60
                         while not self.stop_event.is_set() and time.monotonic() < deadline:
+                            if page.is_closed():
+                                break
                             if self.wake_event.is_set():
                                 self.wake_event.clear()
                                 break
-                            page.wait_for_timeout(250)
+                            try:
+                                page.wait_for_timeout(250)
+                            except Exception:
+                                if not page.is_closed():
+                                    raise
+                                break
                 finally:
                     context.close()
         except Exception:
