@@ -6,6 +6,7 @@ import json
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -38,11 +39,29 @@ def sample(destination='CLE21-CABN'):
 
 def loaded(content=None):
     state = initial_state()
+    state['settings'].update(dataSource='spotfire', spotfireEnabled=True)
     parsed = parse_export(sample() if content is None else content)
     for source in parsed['sources'].values():
         source['importedAt'] = '2026-11-07T08:00:00+00:00'
     state['sources']['spotfire'] = parsed
     return state
+
+
+class DisabledSpotfireTests(unittest.TestCase):
+    def test_saved_spotfire_settings_are_disabled_on_upgrade(self):
+        with tempfile.TemporaryDirectory() as folder:
+            state = loaded()
+            state['settings'].update(dataSource='spotfire', spotfireEnabled=True)
+            from pathlib import Path
+            Path(folder, 'transport-order.json').write_text(json.dumps(state), encoding='utf-8')
+            store = Store(folder)
+            self.assertEqual(store.state['settings']['dataSource'], 'sap')
+            self.assertFalse(store.state['settings']['spotfireEnabled'])
+            self.assertIn('spotfire', store.state['sources'])
+            from transport_order.integrations.spotfire_browser import SpotfireBrowser
+            collector = SpotfireBrowser(store)
+            self.assertFalse(collector.start())
+            self.assertIsNone(collector.thread)
 
 
 class CollectorDiagnosticsTests(unittest.TestCase):
@@ -170,6 +189,7 @@ class SourceStorageTests(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.store = Store(self.folder.name)
+        self.store.state['settings']['spotfireEnabled'] = True
 
     def test_failed_import_keeps_last_valid_snapshot(self):
         self.store.import_spotfire(sample())
@@ -213,13 +233,17 @@ class SourceStorageTests(unittest.TestCase):
         self.store.import_spotfire(export([]), automatic=True)
         state = Store(self.folder.name).snapshot()
         self.assertEqual(state['forms'][0], form)
-        self.assertEqual(active_sources(state)['shipto']['rows'], [])
-        self.assertEqual(active_sources(state)['quantities']['rows'], [])
-        self.assertEqual(active_sources(state)['shipto']['importedAt'], active_sources(state)['quantities']['importedAt'])
+        sources = state['sources']['spotfire']['sources']
+        self.assertEqual(sources['shipto']['rows'], [])
+        self.assertEqual(sources['quantities']['rows'], [])
+        self.assertEqual(sources['shipto']['importedAt'], sources['quantities']['importedAt'])
 
 
 class SpotfireApiTests(unittest.TestCase):
     def test_import_and_required_choice_work_through_local_api(self):
+        enabled = patch('transport_order.domain.SPOTFIRE_AVAILABLE', True)
+        enabled.start()
+        self.addCleanup(enabled.stop)
         with tempfile.TemporaryDirectory() as folder:
             server = create_server(Store(folder), 'spotfire-test', 0)
             thread = threading.Thread(target=server.serve_forever, daemon=True)

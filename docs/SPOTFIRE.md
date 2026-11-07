@@ -1,3 +1,5 @@
+> Spotfire is temporarily disabled because the current report omits deliveries. SAP paste/import is the active source for new and existing workspaces. The integration code is retained for a future complete report.
+
 # Spotfire data infeed
 
 ## Workstation setup

@@ -1,3 +1,5 @@
+> Spotfire is temporarily disabled because the current report omits deliveries. SAP paste/import is the active source for new and existing workspaces. The integration code is retained for a future complete report.
+
 # TransportOrder
 
 A local shipping workspace for preparing transport orders between warehouses in the Netherlands. The interface uses ASML-inspired blue, larger Segoe UI text, stronger contrast, and light/dark themes, with the form in the centre and open pallets on the right.

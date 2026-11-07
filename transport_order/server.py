@@ -138,6 +138,9 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/spotfire-start":
                 result = {"started": self.server.spotfire.start()}
             elif path == "/api/spotfire-import":
+                from .domain import SPOTFIRE_AVAILABLE
+                if not SPOTFIRE_AVAILABLE:
+                    raise InputError("Spotfire is temporarily disabled. Use SAP paste/import.")
                 content = base64.b64decode(payload.get("fileBase64", ""), validate=True)
                 parsed = self.store.import_spotfire(content)
                 result = {key: parsed[key] for key in ("rowCount", "uniqueHus", "warnings")}

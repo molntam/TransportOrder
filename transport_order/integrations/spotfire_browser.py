@@ -42,6 +42,10 @@ class SpotfireBrowser:
             self.status.update(state=state, message=message, **values)
 
     def start(self, workspace_url=None):
+        from ..domain import SPOTFIRE_AVAILABLE
+        if not SPOTFIRE_AVAILABLE:
+            self.update('disabled', 'Spotfire is temporarily disabled because the report omits deliveries. Use SAP paste/import.')
+            return False
         with self.lock:
             if self.thread and self.thread.is_alive():
                 self.wake_event.set()

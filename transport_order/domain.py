@@ -19,6 +19,7 @@ for location in LOCATIONS["toLocations"]:
     if location["shipTo"] == "KEYSIGHT":
         location["department"] = "Key sight"
         location["label"] = "Weert 2 — Key sight"
+SPOTFIRE_AVAILABLE = False
 DEFAULT_ORIGIN = {"building": "Building 05", "department": "Delivery Ops", "shipTo": "B5L - Delivery Ops"}
 
 
@@ -36,12 +37,14 @@ def active_sources(state):
 def default_settings():
     return {"preparedBy": "", "origin": dict(DEFAULT_ORIGIN), "openCopies": 1,
             "finalCopies": 2, "manifestCopies": 1, "dockSlots": [], "printer": "", "theme": "light",
-            "dataSource": "spotfire", "spotfireEnabled": True,
+            "dataSource": "sap", "spotfireEnabled": False,
             "spotfireUrl": default_spotfire_url(), "spotfireBrowser": "msedge"}
 
 
 def migrate_settings(settings):
     result = {**default_settings(), **settings}
+    if not SPOTFIRE_AVAILABLE:
+        result.update(dataSource="sap", spotfireEnabled=False)
     result.pop("copies", None)
     return result
 
