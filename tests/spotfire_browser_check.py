@@ -23,7 +23,8 @@ def check():
             page = browser.new_page(viewport={'width': 1440, 'height': 1000})
             encoded = base64.b64encode(sample()).decode()
             fixture = f'''<!doctype html><html lang="en"><body>
-                <button role="tab" onclick="document.querySelector('table').hidden=false">Data Table Monitor</button>
+                <div hidden>Data Table Monitor</div><div hidden>Handling unit</div>
+                <button onclick="document.querySelector('table').hidden=false">Data Table Monitor</button>
                 <table role="grid" hidden><tr><th>Handling unit</th><th>Quantity</th></tr><tr><td>00001</td><td>2.5</td></tr></table>
                 <div id="menu" hidden><button role="menuitem" onmouseover="document.querySelector('a').hidden=false">Export</button>
                 <a role="menuitem" hidden href="data:text/csv;base64,{encoded}" download="fixture.csv">Export table (without value formatting)</a></div>

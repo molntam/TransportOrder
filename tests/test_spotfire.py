@@ -45,6 +45,19 @@ def loaded(content=None):
     return state
 
 
+class CollectorDiagnosticsTests(unittest.TestCase):
+    def test_browser_failure_reports_the_step_without_exposing_browser_trace(self):
+        from transport_order.integrations.spotfire_browser import collection_failure
+        message = collection_failure('export_menu', RuntimeError('private URL and session in browser trace'))
+        self.assertIn('Export table menu', message)
+        self.assertNotIn('private URL', message)
+        self.assertIn('last valid data', message)
+
+    def test_validation_failure_keeps_the_actual_validation_reason(self):
+        from transport_order.integrations.spotfire_browser import collection_failure
+        self.assertIn('row 2', collection_failure('data_validation', InputError('Invalid quantity at row 2')))
+
+
 class ExportTests(unittest.TestCase):
     def test_utf16_item_rows_preserve_identifiers_and_sum_quantities(self):
         state = loaded()

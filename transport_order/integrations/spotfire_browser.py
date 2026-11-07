@@ -8,6 +8,20 @@ from urllib.parse import urlsplit
 from .sap import InputError
 from .spotfire import PAGE_NAME, report_url
 
+FAILURES = {
+    'report_load': 'The report could not load. Check that this computer can open Spotfire on the ASML network.',
+    'page_selection': 'Data Table Monitor was not found. Finish signing in in the report tab and check that this report page is available.',
+    'table_detection': 'Data Table Monitor opened, but its Handling unit table could not be identified. The report layout may need a collector adjustment.',
+    'export_menu': 'The table was found, but its automatic Export table menu could not be used. The report menu or export permissions need checking.',
+    'export_download': 'The automatic table export did not finish. Check export permissions and retry with Check now.',
+    'data_validation': 'The exported data could not be validated or saved.',
+}
+
+
+def collection_failure(stage, error):
+    message = str(error) if isinstance(error, InputError) else FAILURES.get(stage, 'Automatic Spotfire collection failed.')
+    return message + ' The last valid data remains loaded.'
+
 
 class SpotfireBrowser:
     def __init__(self, store):
@@ -45,9 +59,9 @@ class SpotfireBrowser:
         self.wake_event.set()
 
     def run(self):
-        from playwright.sync_api import sync_playwright
         workspace_opened = False
         try:
+            from playwright.sync_api import sync_playwright
             with sync_playwright() as playwright:
                 settings = self.store.snapshot()['settings']
                 context = playwright.chromium.launch_persistent_context(
@@ -77,7 +91,7 @@ class SpotfireBrowser:
                             continue
                         try:
                             url = report_url(settings['spotfireUrl'])
-                            self.update('collecting', 'Waiting for the report. Sign in in the Spotfire tab if prompted.')
+                            self.update('collecting', 'Waiting for the report. Sign in in the Spotfire tab if prompted.', stage='report_load')
                             if previous_url != url:
                                 page.goto(url, wait_until='domcontentloaded', timeout=30000)
                                 previous_url = url
@@ -85,13 +99,14 @@ class SpotfireBrowser:
                                 page.reload(wait_until='domcontentloaded', timeout=30000)
                             if self.stop_event.is_set():
                                 break
-                            content = collect_export(page)
+                            content = collect_export(page, self.progress)
                             if not self.stop_event.is_set():
+                                self.progress('data_validation')
                                 result = self.store.import_spotfire(content, automatic=True)
                                 from ..domain import now
                                 self.update('connected', f"Checked {result['uniqueHus']} HUs from {result['rowCount']} item rows.", lastCheckedAt=now())
-                        except Exception:
-                            self.update('attention', 'Waiting for sign-in or table export. Open Data Table Monitor and check Export table access. The last valid data remains loaded.')
+                        except Exception as exc:
+                            self.update('attention', collection_failure(self.snapshot().get('stage'), exc))
                         deadline = time.monotonic() + 60
                         while not self.stop_event.is_set() and time.monotonic() < deadline:
                             if page.is_closed():
@@ -113,8 +128,16 @@ class SpotfireBrowser:
                 webbrowser.open(self.workspace_url)
             self.update('setup', 'Could not start the Spotfire browser. Check Edge/Chrome availability and browser automation policy, then choose Open report again.')
 
+    def progress(self, stage):
+        self.update('collecting', 'Collecting Spotfire data automatically.', stage=stage)
 
-def collect_export(page):
+
+def collect_export(page, progress=None):
+    def step(stage):
+        if progress:
+            progress(stage)
+
+    step('page_selection')
     page.set_default_timeout(12000)
     deadline = time.monotonic() + 30
     selected = None
@@ -124,27 +147,29 @@ def collect_export(page):
                 continue
             tab = frame.get_by_role('tab', name=PAGE_NAME, exact=True)
             if tab.count() == 0:
-                tab = frame.get_by_text(PAGE_NAME, exact=True)
-            if tab.count() == 1 and tab.is_visible():
-                tab.click()
+                tab = frame.get_by_text(PAGE_NAME, exact=True).filter(visible=True)
+            if tab.count() > 0:
+                tab.first.click()
                 selected = frame
                 break
         if selected is None:
             page.wait_for_timeout(250)
     if selected is None:
-        raise InputError('Sign in and open Data Table Monitor in the Spotfire tab.')
-    header = selected.get_by_text(re.compile(r'^Handling[ _]unit$', re.I))
+        raise InputError(FAILURES['page_selection'])
+    step('table_detection')
+    header = selected.get_by_text(re.compile(r'^Handling[ _]unit$', re.I)).filter(visible=True)
     header.first.wait_for(state='visible')
     grid = selected.get_by_role('grid').filter(has=header)
     if grid.count() != 1:
-        grid = selected.locator('table').filter(has=header)
+        grid = selected.locator('table').filter(has=header, visible=True)
     if grid.count() != 1:
-        grid = selected.locator('[class*="sfc-visual-content"]').filter(has=header)
+        grid = selected.locator('[class*="sfc-visual-content"]').filter(has=header, visible=True)
     if grid.count() != 1:
         raise InputError('Choose the Data Table Monitor table containing Handling unit.')
+    step('export_menu')
     with page.expect_download(timeout=30000) as downloaded:
         grid.click(button='right')
-        export_table = selected.get_by_text('Export table (without value formatting)', exact=True)
+        export_table = selected.get_by_text('Export table (without value formatting)', exact=True).filter(visible=True)
         export_menu = selected.get_by_role('menuitem', name='Export', exact=True)
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline:
@@ -156,7 +181,8 @@ def collect_export(page):
         if export_table.count() == 1 and export_table.is_visible():
             export_table.click()
         else:
-            selected.get_by_text('Export table', exact=True).click()
+            selected.get_by_text('Export table', exact=True).filter(visible=True).click()
+        step('export_download')
     download = downloaded.value
     if download.failure():
         raise InputError('Spotfire export download failed.')
