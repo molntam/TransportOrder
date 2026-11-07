@@ -18,6 +18,7 @@ from . import __version__
 from .domain import LOCATIONS, resolve, source_diagnostics
 from .integrations import PROVIDERS
 from .integrations.sap import InputError, parse_table
+from .integrations.spotfire_browser import SpotfireBrowser
 from .printing import render_document
 from .native_print import PrintService, list_printers
 from .storage import ConflictError, Store, WorkspaceLock
@@ -74,6 +75,7 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/state":
                 self.send(200, {"state": state, "locations": LOCATIONS,
                     "diagnostics": source_diagnostics(state), "version": __version__,
+                    "spotfireStatus": self.server.spotfire.snapshot(),
                     "archiveStatus": {"paired": bool(self.server.cloud.device_token), "pending": len(list((self.store.directory / "archive" / "outbox").glob("*.json"))), "error": self.server.archive_error},
                     "providers": [{k: getattr(p, k) for k in ("id", "label", "available", "description")} for p in PROVIDERS]})
             elif path == "/api/print":
@@ -132,7 +134,13 @@ class Handler(BaseHTTPRequestHandler):
                 if "fileBase64" in data:
                     data["content"] = base64.b64decode(data.pop("fileBase64"), validate=True)
             if path == "/api/resolve":
-                result = resolve(self.store.snapshot(), payload.get("lines", []), payload.get("formId"), payload.get("destination"), payload.get("overrideReason", ""))
+                result = resolve(self.store.snapshot(), payload.get("lines", []), payload.get("formId"), payload.get("destination"), payload.get("overrideReason", ""), payload.get("weert1aChoice"))
+            elif path == "/api/spotfire-start":
+                result = {"started": self.server.spotfire.start()}
+            elif path == "/api/spotfire-import":
+                content = base64.b64decode(payload.get("fileBase64", ""), validate=True)
+                parsed = self.store.import_spotfire(content)
+                result = {key: parsed[key] for key in ("rowCount", "uniqueHus", "warnings")}
             elif path == "/api/import-preview":
                 result = parse_table(payload.get("kind"), payload.get("text", ""), payload.get("content"), payload.get("decimalMark", "."))
             elif path == "/api/cloud-login":
@@ -170,6 +178,7 @@ def create_server(store, token, port=0):
     server = ThreadingHTTPServer(("127.0.0.1", port), partial(Handler, store=store, token=token))
     server.daemon_threads = True
     server.cloud = Cloud(store.directory)
+    server.spotfire = SpotfireBrowser(store)
     server.print_service = PrintService(f"http://127.0.0.1:{server.server_port}")
     def upload_archive():
         while not server.archive_stop.wait(10):
@@ -183,6 +192,7 @@ def create_server(store, token, port=0):
     close = server.server_close
     def close_with_archive():
         server.archive_stop.set()
+        server.spotfire.stop()
         close()
     server.server_close = close_with_archive
     threading.Thread(target=upload_archive, daemon=True).start()
@@ -222,7 +232,12 @@ def main():
     url = f"http://127.0.0.1:{server.server_port}/#session={token}"
     print(f"TransportOrder {__version__}\nData folder: {store.directory}\nOpen: {url}\nKeep this terminal open. Press Ctrl+C to stop.", flush=True)
     if not args.no_browser:
-        open_window(url, store.directory, args.browser)
+        settings = store.snapshot()["settings"]
+        start_spotfire = settings["spotfireEnabled"] and settings["dataSource"] == "spotfire"
+        if not start_spotfire or args.browser == "default" or not server.spotfire.start(url):
+            open_window(url, store.directory, args.browser)
+            if start_spotfire and args.browser == "default":
+                server.spotfire.start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

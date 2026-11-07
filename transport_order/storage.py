@@ -103,7 +103,9 @@ class Store:
     def apply(self, action, payload, expected_revision):
         with self.lock:
             self.rollover()
-            if expected_revision != self.state["revision"]:
+            last_edit = self.state.get("lastEditRevision", self.state["revision"])
+            if (not isinstance(expected_revision, int) or expected_revision > self.state["revision"]
+                    or expected_revision < last_edit):
                 raise ConflictError("Another window changed the data. Refresh before saving; your current form is still on screen.")
             candidate = copy.deepcopy(self.state)
             result = apply_action(candidate, action, payload)
@@ -117,7 +119,34 @@ class Store:
                     result["archiveWarning"] = "Document saved, but its archive could not be written. Check disk space and reprint to retry."
             return result
 
-    def _write(self, state):
+    def import_spotfire(self, content, automatic=False):
+        from .integrations.spotfire import parse_export
+        from .domain import now
+        parsed = parse_export(content)
+        with self.lock:
+            self.rollover()
+            if automatic and (self.state["settings"]["dataSource"] != "spotfire" or not self.state["settings"]["spotfireEnabled"]):
+                return parsed
+            previous = self.state["sources"].get("spotfire") or {}
+            if parsed["fingerprint"] == previous.get("fingerprint") and (automatic or self.state["settings"]["dataSource"] == "spotfire"):
+                return parsed
+            candidate = copy.deepcopy(self.state)
+            candidate.setdefault("lastEditRevision", self.state["revision"])
+            timestamp = now()
+            for source in parsed["sources"].values():
+                source["importedAt"] = timestamp
+            candidate["sources"]["spotfire"] = {**parsed, "importedAt": timestamp}
+            if not automatic:
+                candidate["settings"]["dataSource"] = "spotfire"
+            event(candidate, "Spotfire data updated", "spotfire", f"{parsed['uniqueHus']} HUs; {parsed['rowCount']} item rows")
+            candidate["revision"] += 1
+            self._write(candidate, source_only=automatic)
+            self.state = candidate
+            return parsed
+
+    def _write(self, state, source_only=False):
+        if not source_only:
+            state["lastEditRevision"] = state["revision"]
         descriptor, temporary = tempfile.mkstemp(dir=self.directory, suffix=".tmp")
         try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:

@@ -10,3 +10,5 @@ test-results/
 *.XLSX
 *.xlsm
 *.log
+
+spotfire-browser-profile/

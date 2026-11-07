@@ -22,9 +22,22 @@ for location in LOCATIONS["toLocations"]:
 DEFAULT_ORIGIN = {"building": "Building 05", "department": "Delivery Ops", "shipTo": "B5L - Delivery Ops"}
 
 
+def default_spotfire_url():
+    from .integrations.spotfire import DEFAULT_REPORT_URL
+    return DEFAULT_REPORT_URL
+
+
+def active_sources(state):
+    if state["settings"].get("dataSource", "sap") == "spotfire":
+        return (state["sources"].get("spotfire") or {}).get("sources", {"shipto": None, "quantities": None})
+    return {key: state["sources"].get(key) for key in ("shipto", "quantities")}
+
+
 def default_settings():
     return {"preparedBy": "", "origin": dict(DEFAULT_ORIGIN), "openCopies": 1,
-            "finalCopies": 2, "manifestCopies": 1, "dockSlots": [], "printer": "", "theme": "light"}
+            "finalCopies": 2, "manifestCopies": 1, "dockSlots": [], "printer": "", "theme": "light",
+            "dataSource": "spotfire", "spotfireEnabled": True,
+            "spotfireUrl": default_spotfire_url(), "spotfireBrowser": "msedge"}
 
 
 def migrate_settings(settings):
@@ -69,11 +82,15 @@ def route_key(location):
     return tuple(str(location.get(k, "")).strip().upper() for k in ("building", "department", "shipTo"))
 
 
-def route_for(record):
+def route_for(record, weert_mode=""):
     code = record["shipTo"].strip().upper()
     if code == "NL05C":
         return None, "NL05C needs an explicit destination: Weert or Eindhoven / BIC."
     if code == "WH-WEERT1A":
+        if record.get("provider") == "spotfire":
+            if weert_mode not in ("scrap", "normal"):
+                return None, "Choose Scrap or Normal for Weert 1A. Spotfire has no External Delivery ID."
+            record = {**record, "externalId": "SCRAP" if weert_mode == "scrap" else ""}
         external = record.get("externalId", "").strip().upper()
         if external == "SCRAP":
             return {"building": "Weert 1A", "department": "SCRAP", "shipTo": "WEERT1A SCRAP"}, ""
@@ -85,19 +102,25 @@ def route_for(record):
 
 
 def source_diagnostics(state):
-    a = {r["hu"] for r in (state["sources"]["shipto"] or {}).get("rows", [])}
-    b = {r["hu"] for r in (state["sources"]["quantities"] or {}).get("rows", [])}
+    a = {r["hu"] for r in (active_sources(state)["shipto"] or {}).get("rows", [])}
+    b = {r["hu"] for r in (active_sources(state)["quantities"] or {}).get("rows", [])}
     return {"missingQuantities": sorted(a - b), "missingShipto": sorted(b - a)}
 
 
-def resolve(state, lines, form_id=None, chosen_destination=None, override_reason=""):
+def resolve(state, lines, form_id=None, chosen_destination=None, override_reason="", weert1a_choice=None):
     if not isinstance(lines, list) or len(lines) > 500:
         raise InputError("A form can contain at most 500 rows.")
     ships, quantities = defaultdict(list), defaultdict(list)
-    for row in (state["sources"]["shipto"] or {}).get("rows", []):
+    for row in (active_sources(state)["shipto"] or {}).get("rows", []):
         ships[row["hu"]].append(row)
-    for row in (state["sources"]["quantities"] or {}).get("rows", []):
+    for row in (active_sources(state)["quantities"] or {}).get("rows", []):
         quantities[row["hu"]].append(row)
+    required_hus = sorted({identifier(line.get("hu", "")) for line in lines
+                           if any(record.get("provider") == "spotfire" and record["shipTo"].upper() == "WH-WEERT1A"
+                                  for record in ships.get(identifier(line.get("hu", "")), []))})
+    choice = weert1a_choice if isinstance(weert1a_choice, dict) else {}
+    mode = choice.get("mode") if choice.get("hus") == required_hus else None
+    needs_weert_choice = bool(required_hus) and mode not in ("scrap", "normal")
     assigned = {}
     for form in state["forms"]:
         if form["id"] == form_id or form.get("removedAt") or form["status"] == "draft":
@@ -138,7 +161,7 @@ def resolve(state, lines, form_id=None, chosen_destination=None, override_reason
             issue("Conflicting Ship-to records; correct the imported data.")
         else:
             record = records[0]
-            route, warning = route_for(record)
+            route, warning = route_for(record, mode)
             line.update({"dn": record["dn"], "sourceShipTo": record["shipTo"],
                          "document": record["document"], "condition": record.get("condition", ""),
                          "externalId": record.get("externalId", ""), "destination": route,
@@ -148,7 +171,7 @@ def resolve(state, lines, form_id=None, chosen_destination=None, override_reason
             if route:
                 routes.append(route)
             if warning:
-                code = "override" if chosen_destination and all(chosen_destination.values()) and override_reason.strip() else "error"
+                code = "override" if not needs_weert_choice and chosen_destination and all(chosen_destination.values()) and override_reason.strip() else "error"
                 issue(warning, code)
             qrows = quantities.get(hu, [])
             if not qrows:
@@ -178,12 +201,13 @@ def resolve(state, lines, form_id=None, chosen_destination=None, override_reason
             if override_reason.strip():
                 needs_override = True
             else:
-                issues.append({"code": "error", "message": "The selected destination differs from the SAP route. Enter a reason to override it."})
+                issues.append({"code": "error", "message": "The selected destination differs from the source route. Enter a reason to override it."})
         if needs_override:
             destination = chosen_destination
     return {"lines": resolved, "issues": issues, "destination": destination,
             "emergency": emergency, "overridden": needs_override,
-            "valid": bool(resolved) and not any(i["code"] == "error" for i in issues)}
+            "valid": bool(resolved) and not any(i["code"] == "error" for i in issues),
+            "requiresWeert1aChoice": needs_weert_choice, "weert1aHus": required_hus}
 
 
 def normalize_form(state, payload, complete):
@@ -198,7 +222,7 @@ def normalize_form(state, payload, complete):
     reason = str(payload.get("overrideReason", "")).strip()[:1000]
     automatic_emergency, overridden, issues = False, False, []
     if mode == "automatic":
-        result = resolve(state, lines, payload.get("id"), destination, reason)
+        result = resolve(state, lines, payload.get("id"), destination, reason, payload.get("weert1aChoice"))
         lines, automatic_emergency, overridden = result["lines"], result["emergency"], result["overridden"]
         issues = [i for i in result["issues"] if i["code"] == "error"]
         if result["destination"]:
@@ -238,7 +262,9 @@ def normalize_form(state, payload, complete):
             "manualEmergency": bool(payload.get("manualEmergency")),
             "specialPickup": bool(payload.get("specialPickup")),
             "automaticEmergency": automatic_emergency, "overrideReason": reason,
-            "overridden": overridden, "sourceImports": {k: v["importedAt"] if v else None for k, v in state["sources"].items()}}
+            "overridden": overridden, "weert1aChoice": copy.deepcopy(payload.get("weert1aChoice", {})),
+            "sourceProvider": state["settings"].get("dataSource", "sap"),
+            "sourceImports": {k: v["importedAt"] if v else None for k, v in active_sources(state).items()}}
 
 
 def pallet_compatibility(state, pallet, form, exclude_id=None):
@@ -286,6 +312,7 @@ def apply_action(state, action, payload):
         state["sources"][result["kind"]] = {"rows": result["rows"], "importedAt": now(),
             "count": result["count"], "uniqueHus": result["uniqueHus"], "warnings": result["warnings"],
             "filename": str(payload.get("filename", "Pasted SAP table"))[:200]}
+        state["settings"]["dataSource"] = "sap"
         event(state, "SAP data imported", result["kind"], f"{result['count']} records; {result['uniqueHus']} HUs")
         return {}
     if action == "clear_source":
@@ -303,7 +330,12 @@ def apply_action(state, action, payload):
                 raise InputError("Choose between 1 and 5 copies for each document type.")
         if settings["theme"] not in ("light", "dark", "system"):
             raise InputError("Choose Light, Dark or Follow system.")
-        state["settings"] = {"preparedBy": str(settings["preparedBy"]).strip()[:200],
+        if settings["dataSource"] not in ("spotfire", "sap") or settings["spotfireBrowser"] not in ("msedge", "chrome"):
+            raise InputError("Choose Spotfire/SAP and an Edge or Chrome browser.")
+        from .integrations.spotfire import report_url
+        spotfire_url = report_url(settings["spotfireUrl"])
+        state["settings"] = {"dataSource": settings["dataSource"], "spotfireEnabled": bool(settings["spotfireEnabled"]),
+            "spotfireUrl": spotfire_url, "spotfireBrowser": settings["spotfireBrowser"], "preparedBy": str(settings["preparedBy"]).strip()[:200],
             "origin": clean_location(settings["origin"]), "openCopies": settings["openCopies"],
             "finalCopies": settings["finalCopies"], "printer": str(settings["printer"]).strip()[:300],
             "theme": settings["theme"], "manifestCopies": settings["manifestCopies"],

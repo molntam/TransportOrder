@@ -4,7 +4,7 @@ A local shipping workspace for preparing transport orders between warehouses in 
 
 ## Run
 
-Requires **Python 3.10 or later**. No pip packages, database download, Node installation or account setup is needed to run the app.
+Requires **Python 3.10 or later**. SAP paste/import runs without pip packages. For automatic Spotfire collection, run **`setup_spotfire.bat`** once to install the optional browser dependency; see [Spotfire setup](docs/SPOTFIRE.md). Node is not needed to run the app.
 
 On Windows, double-click **`start.bat`**, or run from the repository folder:
 
@@ -18,7 +18,7 @@ On macOS / Linux:
 python3 run.py
 ```
 
-Keep the terminal open. On Windows, the app opens in a dedicated Edge application window with its own browser profile. If Edge is unavailable, it opens the default browser. To explicitly use the default browser, including Firefox:
+Keep the terminal open. With Spotfire enabled, the app opens in a visible Edge window with a separate report tab for your corporate sign-in. Without the optional dependency it opens the existing local workspace and shows the setup instructions. SAP mode uses the dedicated Edge application window. To explicitly use your default browser for the workspace, including Firefox:
 
 ```powershell
 py -3 run.py --browser default
@@ -28,7 +28,11 @@ If the browser does not open automatically, use the full local link printed in t
 
 ## First test
 
-1. Open **Data infeed**.
+Spotfire is the primary source. Run the one-time setup, start the app and sign in in its report tab; **Data Table Monitor** is checked every minute. Weert 1A requires an explicit **Scrap / Normal** choice. [The Spotfire guide](docs/SPOTFIRE.md) covers report access, destination review and workstation acceptance checks.
+
+To test the SAP fallback:
+
+1. Open **Data infeed** and choose **Use SAP paste/import**.
 2. Click an input cell and press **Ctrl+V** to paste the **Ship-to** and **Quantities** SAP tables. Headers are prefilled for data-only pastes; a paste containing headers replaces the input grid. File import (`.xlsx`, `.csv`, `.tsv`, `.txt`) is still available.
 3. Click **Validate & apply**, resolving any errors. Leaving Data infeed also applies changed valid cells. Pasted quantities can use a decimal point or comma; select the matching format before validating. XLSX quantities use the workbook's numeric values.
 4. Open **Create order**. Enter HUs one by one or use **Paste HUs**. Destination, DN, quantity and Emergency fill from the imports.
@@ -63,7 +67,7 @@ Appearance can be changed in Settings (Light, Dark, Follow system), or toggled f
 
 Data is saved outside the repository in **`~/TransportOrderData`** (`%USERPROFILE%\TransportOrderData` on Windows). The main file is `transport-order.json`; the previous successful state is `transport-order.previous.json`. Closing the browser does not delete saved work. One application process can open a data folder at a time. Multiple browser windows share that process, with revision checks preventing overwrites.
 
-**The preparation app is a local workstation application with shared online tracking.** Loading manifests, pallet QRs and the driver loading screen work in this local workspace. A separate public driver website is available in `driver-site`; see [Driver website](docs/DRIVER_SITE.md). Fresh revision-1 loading manifests can be explicitly published from Truck loading after one-time workstation pairing in Settings; reprint the manifest to use its online QR. Desktop progress updates through Refresh online status. Shared desktop storage, SharePoint PDF uploads and Spotfire automation are not connected. The app does not notify another workstation. Preparer and driver names are self-reported labels. Tracking viewers sign in on the website. The active app resets daily after archiving; see the driver website documentation.
+**The preparation app is a local workstation application with shared online tracking.** Loading manifests, pallet QRs and the driver loading screen work in this local workspace. A separate public driver website is available in `driver-site`; see [Driver website](docs/DRIVER_SITE.md). Fresh revision-1 loading manifests can be explicitly published from Truck loading after one-time workstation pairing in Settings; reprint the manifest to use its online QR. Desktop progress updates through Refresh online status. Shared desktop storage and SharePoint PDF uploads are not connected. Spotfire collection runs locally through the signed-in report tab; see [Spotfire setup and limits](docs/SPOTFIRE.md). The app does not notify another workstation. Preparer and driver names are self-reported labels. Tracking viewers sign in on the website. The active app resets daily after archiving; see the driver website documentation.
 
 Part numbers and descriptions remain manual because the two current SAP exports do not contain them. One automatic row represents an HU's aggregate quantity; it does not invent item-level material details. A form supports up to 500 rows. Each input supports up to 50,000 source records.
 
@@ -77,7 +81,7 @@ The server binds only to `127.0.0.1`, uses a fresh session token at startup and 
 | `transport_order/server.py` | Local API, session checks and browser launcher |
 | `transport_order/domain.py` | HU resolution, validation, forms, pallets and history |
 | `transport_order/integrations/sap.py` | Paste, CSV and XLSX ingestion |
-| `transport_order/integrations/spotfire.py` | Inactive provider boundary for the later report |
+| `transport_order/integrations/spotfire.py`, `spotfire_browser.py` | Spotfire CSV validation, destination aliases and signed-in browser collection |
 | `transport_order/locations.json` | Origin/destination directory and operational routing |
 | `transport_order/loads.py` | Loading manifests, reservations, scan validation, pickups and weekday dock slots |
 | `transport_order/qr.py` | Offline QR encoding shared by HTML and native printing |
@@ -137,4 +141,4 @@ Manifest QRs currently point to the running local app address and contain no ses
 
 The `supabase/` directory contains the shared shipment database migration, destination presets and a first-administrator bootstrap script. It adds workspace access rules, versioned documents, controlled operator actions, scoped driver links, loading scans and pickup/delivery records. See [Supabase setup](docs/SUPABASE.md) for deployment, operator provisioning, API payloads and testing.
 
-The desktop runtime remains local until the sign-in/synchronisation and hosted driver client are connected. Applying the migration does not upload existing forms or change printing. Database regression tests use the pinned PGlite development dependency; running the desktop still requires only Python.
+Applying the migration alone does not upload existing forms or change printing. Database regression tests use the pinned PGlite development dependency. The desktop uses the optional Playwright dependency only for automatic Spotfire collection.

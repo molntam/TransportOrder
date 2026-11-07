@@ -138,10 +138,32 @@ async function api(path, payload, raw=false) {
 }
 
 let cloudStatus={};
-async function loadState() {
+let spotfireStatus={};
+function currentSources() {
+  return state.settings.dataSource === "spotfire"
+    ? state.sources.spotfire?.sources || {shipto:null,quantities:null}
+    : state.sources;
+}
+function unprocessedHuCount() {
+  const assigned = new Set(state.forms.filter(f => f.palletId && !f.removedAt).flatMap(f => f.lines.map(l => l.hu).filter(Boolean)));
+  return new Set((currentSources().shipto?.rows || []).map(r => r.hu).filter(hu => hu && !assigned.has(hu))).size;
+}
+function spotfireStatusText() {
+  const source = state.sources.spotfire;
+  return `${spotfireStatus.message || "Spotfire has not connected yet."} ${source ? `${source.uniqueHus} HUs · Last imported ${formatDate(source.importedAt)}` : "No Spotfire data loaded."}`;
+}
+function renderSpotfire() {
+  return `<section class="card mb" id="spotfire-config"><div class="card-head"><div><h2>Spotfire · Data Table Monitor</h2><p>Primary source · checked every minute in your signed-in report tab</p></div><span class="pill ${state.settings.dataSource === "spotfire" ? "open" : "draft"}">${state.settings.dataSource === "spotfire" ? "Active source" : "SAP selected"}</span></div><div class="card-body"><p id="spotfire-state" role="status">${esc(spotfireStatusText())}</p><label class="mt">Report URL<input id="spotfire-url" type="url" value="${esc(state.settings.spotfireUrl)}"></label><div class="fields two mt"><label>Report browser<select id="spotfire-browser"><option value="msedge" ${state.settings.spotfireBrowser === "msedge" ? "selected" : ""}>Microsoft Edge</option><option value="chrome" ${state.settings.spotfireBrowser === "chrome" ? "selected" : ""}>Google Chrome</option></select><span class="field-hint">A browser change applies after restarting the app.</span></label><label>Automatic collection<select id="spotfire-enabled"><option value="on" ${state.settings.spotfireEnabled ? "selected" : ""}>Open at startup and check every minute</option><option value="off" ${!state.settings.spotfireEnabled ? "selected" : ""}>Paused</option></select></label></div><div class="inline-actions mt"><button class="btn primary" data-action="spotfire-connect">Save &amp; open report</button><button class="btn" data-action="spotfire-refresh">Check now</button><button class="btn" data-action="spotfire-file">Import Spotfire CSV</button><input id="spotfire-file" type="file" class="file-input" accept=".csv,.tsv,.txt" data-spotfire-file="true"></div><div class="inline-actions mt"><button class="btn" data-action="source-select" data-source="spotfire" ${state.settings.dataSource === "spotfire" ? "disabled" : ""}>Use Spotfire data</button><button class="btn" data-action="source-select" data-source="sap" ${state.settings.dataSource === "sap" ? "disabled" : ""}>Use SAP paste/import</button></div><p class="field-hint mt">Sign in in the visible report tab and keep it open. Export reflects the report's data and filters. Failed checks retain the last valid snapshot. First use requires setup_spotfire.bat.</p>${(state.sources.spotfire?.warnings || []).length ? `<details class="mt"><summary>Destination review · ${state.sources.spotfire.warnings.length} descriptions</summary><ul>${state.sources.spotfire.warnings.map(warning => `<li>${esc(warning)}</li>`).join("")}</ul></details>` : ""}</div></section>`;
+}
+async function loadState(background=false) {
   const result = await api("state");
   cloudStatus=result.archiveStatus||{};
-  state = result.state; directory = result.locations; diagnostics = result.diagnostics; providers = result.providers;
+  spotfireStatus=result.spotfireStatus||{};
+  const businessState = ({sources,revision,lastEditRevision,events,...records}) => JSON.stringify(records);
+  state = background && state && businessState(state) !== businessState(result.state)
+    ? {...state,sources:result.state.sources}
+    : result.state;
+  directory = result.locations; diagnostics = result.diagnostics; providers = result.providers;
   $("#app-version").textContent = "TransportOrder " + result.version;
   updateShell();
 }
@@ -151,9 +173,11 @@ function updateShell() {
   const items = [["create","form","Create order"],["infeed","database","Data infeed"],["open-orders","truck","Open orders"],["pallets","box","Pallets"],["loads","truck","Truck loading"],["docks","clock","Dock slots"],["history","history","History"],["settings","settings","Settings"]];
   $("#navigation").innerHTML = items.map(([id,ico,label])=>`<button class="nav-item ${view===id?"active":""}" data-action="navigate" data-view="${id}" title="${label}" ${view===id?'aria-current="page"':''}>${icon(ico)}<span>${label}</span>${id==="pallets"&&state.pallets.some(p=>p.status==="open")?`<b class="nav-count">${state.pallets.filter(p=>p.status==="open").length}</b>`:""}</button>`).join("");
   $("#page-label").textContent = items.find(i=>i[0]===view)?.[2] || "Create order";
-  const ready = state.sources.shipto && state.sources.quantities;
-  $("#source-health").className = "health-chip" + (ready ? "" : " warning");
-  $("#source-health").innerHTML = icon(ready?"check":"database") + (ready ? "SAP tables loaded" : "SAP data needed");
+  const ready = currentSources().shipto && currentSources().quantities;
+  const attention = state.settings.dataSource === "spotfire" && ["setup","attention","closed"].includes(spotfireStatus.state);
+  $("#source-health").className = "health-chip" + (ready && !attention ? "" : " warning");
+  $("#source-health").title = state.settings.dataSource === "spotfire" ? spotfireStatusText() : "SAP paste/import selected";
+  $("#source-health").innerHTML = icon(attention?"alert":ready?"check":"database") + (attention ? "Spotfire needs attention" : ready ? `${state.settings.dataSource === "spotfire" ? "Spotfire" : "SAP"} data loaded` : `${state.settings.dataSource === "spotfire" ? "Spotfire" : "SAP"} data needed`);
   const name = state.settings.preparedBy || "Shipping user";
   $("#user-label").innerHTML = esc(name) + "<small>Delivery Operations</small>";
   $("#avatar").textContent = state.settings.preparedBy ? name.slice(0,2).toUpperCase() : "DO";
@@ -176,7 +200,7 @@ function stats() {
 function locationFields(prefix, value, source="toLocations") {
   const locations = directory[source];
   const options = key => [...new Set(locations.filter(l=>(key==="building" || !value.building || l.building===value.building) && (key!=="shipTo" || !value.department || l.department===value.department)).map(l=>l[key]))].sort().map(v=>`<option value="${esc(v)}"></option>`).join("");
-  return `<div class="fields">${[["building","Building","Select or type a building"],["department","Department","Select or type a department"],["shipTo",prefix==="origin"?"Ship-from":"Ship-to","SAP code or location"]].map(([key,label,placeholder])=>`<label>${prefix==="origin"?"From":"To"} ${label.toLowerCase()} <span class="required">*</span><input name="${prefix}.${key}" data-field="${prefix}.${key}" value="${esc(value[key])}" list="${prefix}-${key}" placeholder="${placeholder}" autocomplete="off"><datalist id="${prefix}-${key}">${options(key)}</datalist></label>`).join("")}</div>`;
+  return `<div class="fields">${[["building","Building","Select or type a building"],["department","Department","Select or type a department"],["shipTo",prefix==="origin"?"Ship-from":"Ship-to","Ship-to code or location"]].map(([key,label,placeholder])=>`<label>${prefix==="origin"?"From":"To"} ${label.toLowerCase()} <span class="required">*</span><input name="${prefix}.${key}" data-field="${prefix}.${key}" value="${esc(value[key])}" list="${prefix}-${key}" placeholder="${placeholder}" autocomplete="off"><datalist id="${prefix}-${key}">${options(key)}</datalist></label>`).join("")}</div>`;
 }
 
 function rowHtml(line, index) {
@@ -187,25 +211,24 @@ function rowHtml(line, index) {
 
 function renderCreate() {
   const pallet = state.pallets.find(p=>p.id===selectedPallet);
-  const assignedHus=new Set(state.forms.filter(f=>f.palletId&&!f.removedAt).flatMap(f=>f.lines.map(l=>l.hu).filter(Boolean)));
-  const openHus=new Set((state.sources.shipto?.rows||[]).map(r=>r.hu).filter(hu=>hu&&!assignedHus.has(hu))).size;
-  const missingData = !state.sources.shipto || !state.sources.quantities;
+  const openHus = unprocessedHuCount();
+  const missingData = !currentSources().shipto || !currentSources().quantities;
   return heading("Shipment workspace",editor.id?"Edit transport order":"Prepare a transport order","Build the order, check its destination and keep your pallet moving.") +
-    `<div class="banner"><strong>${nfmt(openHus)} unprocessed HUs</strong><span>Not yet assigned to a pallet in today's SAP infeed.</span><button class="subtle-button" data-action="navigate" data-view="open-orders">View open orders</button></div><div class="work-grid"><div class="form-column">${editor.id?`<div class="banner">${icon("edit")}Editing ${esc(editor.id)} · ${editor.mode==="automatic"?"SAP lookups will be checked again when saved.":"Manual values are preserved."}<button class="subtle-button" data-action="new-form">New form</button></div>`:""}
-    ${missingData&&editor.mode==="automatic"?`<div class="banner warn">${icon("database")}Load the two SAP tables to fill destination, quantity and DN automatically.<button class="subtle-button" data-action="navigate" data-view="infeed">Data infeed ${icon("arrow")}</button></div>`:""}
+    `<div class="banner"><strong id="open-hu-count">${nfmt(openHus)} unprocessed HUs</strong><span>Not yet assigned to a pallet in today's active data source.</span><button class="subtle-button" data-action="navigate" data-view="open-orders">View open orders</button></div><div class="work-grid"><div class="form-column">${editor.id?`<div class="banner">${icon("edit")}Editing ${esc(editor.id)} · ${editor.mode==="automatic"?"Source lookups will be checked again when saved.":"Manual values are preserved."}<button class="subtle-button" data-action="new-form">New form</button></div>`:""}
+    ${missingData&&editor.mode==="automatic"?`<div class="banner warn">${icon("database")}Connect Spotfire or select SAP paste/import in Data infeed to fill destination, quantity and DN.<button class="subtle-button" data-action="navigate" data-view="infeed">Data infeed ${icon("arrow")}</button></div>`:""}
     <section class="card"><div class="card-head"><div class="card-title"><span class="card-number">01</span><h2>Shipment details</h2></div><div class="segmented" aria-label="Entry mode"><button data-action="mode" data-mode="automatic" class="${editor.mode==="automatic"?"selected":""}" aria-pressed="${editor.mode==="automatic"}">Automatic</button><button data-action="mode" data-mode="manual" class="${editor.mode==="manual"?"selected":""}" aria-pressed="${editor.mode==="manual"}">Manual</button></div></div>
-    <div class="card-body"><div class="route-strip"><div class="route-end"><small>SHIP FROM</small><strong id="route-from">${esc(editor.origin.building || "Select origin")}</strong><span>${esc(editor.origin.department || "Origin department")}</span></div><div class="route-track">${icon("truck")}</div><div class="route-end"><small>SHIP TO</small><strong id="route-to">${esc(editor.destination.building || "Awaiting HUs")}</strong><span>${esc(editor.destination.department || (editor.mode==="automatic"?"Filled from SAP data":"Select a destination"))}</span></div></div>
+    <div class="card-body"><div class="route-strip"><div class="route-end"><small>SHIP FROM</small><strong id="route-from">${esc(editor.origin.building || "Select origin")}</strong><span>${esc(editor.origin.department || "Origin department")}</span></div><div class="route-track">${icon("truck")}</div><div class="route-end"><small>SHIP TO</small><strong id="route-to">${esc(editor.destination.building || "Awaiting HUs")}</strong><span>${esc(editor.destination.department || (editor.mode==="automatic"?"Filled from the active source":"Select a destination"))}</span></div></div>
     ${locationFields("destination",editor.destination)}
     <div class="quick-routes"><span>Quick select</span>${[["Weert 1A","Weert 1A"],["Weert 2","Weert 2"],["BLD 21","Building 21"],["BLD 30","Building 30"],["BLD 58","Building 58"],["Other","all"]].map(([text,building])=>`<button class="route-chip" data-action="presets" data-building="${building}">${text}</button>`).join("")}</div>
     <button class="subtle-button origin-toggle" data-action="origin">${icon("edit")}${originExpanded?"Hide":"Edit"} origin &amp; prepared by</button>
     ${originExpanded?`<div class="origin-fields">${locationFields("origin",editor.origin,"fromLocations")}<label class="mt">Prepared by<input data-field="preparedBy" value="${esc(editor.preparedBy)}" placeholder="Your username"></label></div>`:""}
-    ${editor.mode==="automatic"&&editor.destinationOverride?`<label class="override">Destination override reason<input data-field="overrideReason" value="${esc(editor.overrideReason)}" placeholder="Required if changing or manually resolving a SAP route"><span class="field-hint">The original SAP ship-to is retained on each HU.</span></label>`:""}
+    ${editor.mode==="automatic"&&editor.destinationOverride?`<label class="override">Destination override reason<input data-field="overrideReason" value="${esc(editor.overrideReason)}" placeholder="Required if changing or manually resolving a source route"><span class="field-hint">The original source ship-to is retained on each HU.</span></label>`:""}
     </div></section>
     <section class="card"><div class="card-head"><div class="card-title"><span class="card-number">02</span><h2>Materials &amp; handling units</h2></div><button class="subtle-button" data-action="bulk">${icon("plus")}Paste HUs</button></div>
     ${bulkExpanded?`<div class="paste-panel"><label>Paste one or more HU numbers<textarea id="bulk-hus" placeholder="One HU per line, or separated by spaces, commas or semicolons"></textarea></label><div class="inline-actions"><button class="btn primary small" data-action="add-hus">Add &amp; look up</button><span class="field-hint">Each HU becomes one row. Quantities are summed automatically.</span></div></div>`:""}
     <div class="table-wrap"><table class="material-table"><thead><tr><th>#</th><th>12NC / Part nr.</th><th>Description</th><th>Qty</th><th>Handling unit</th><th>DN</th><th></th></tr></thead><tbody id="material-rows">${editor.lines.map(rowHtml).join("")}</tbody></table></div>
     <div class="table-bottom"><button class="subtle-button" data-action="add-line">${icon("plus")}Add material row</button><span class="table-totals" id="line-totals">${lineTotals()}</span></div>
-    ${editor.mode==="automatic"?`<div class="card-body" style="padding-top:0;padding-bottom:14px"><button class="btn small" data-action="resolve">${icon("refresh")}Check HUs &amp; refresh fields</button><span class="field-hint">12NC and descriptions are entered manually. They are not in these SAP exports.</span></div>`:""}
+    ${editor.mode==="automatic"?`<div class="card-body" style="padding-top:0;padding-bottom:14px"><button class="btn small" data-action="resolve">${icon("refresh")}Check HUs &amp; refresh fields</button><span class="field-hint">12NC and descriptions are entered manually. They remain optional manual fields.</span></div>`:""}
     ${resolveResult?.issues.some(i=>i.code==="error")?`<div class="banner error" style="margin:0 18px 16px">${icon("alert")}Resolve the highlighted HU errors before completing this order.</div>`:""}
     </section>
     <section class="card"><div class="card-body"><div class="remarks-row"><label>Remarks &amp; handling</label><div class="inline-actions"><label class="check-label"><input type="checkbox" data-field="manualEmergency" ${editor.manualEmergency?"checked":""}>Emergency</label><label class="check-label"><input type="checkbox" data-field="specialPickup" ${editor.specialPickup?"checked":""}>Special pick-up</label></div></div>
@@ -242,10 +265,10 @@ function sourceCard(kind,title,description,headers) {
 
 function renderInfeed() {
   const mismatch = diagnostics.missingQuantities.length + diagnostics.missingShipto.length;
-  return heading("Data workspace","SAP data infeed","Paste your two SAP tables. Preview them, check the results, then apply.",`<button class="btn" data-action="demo">${icon("grid")}Load fictional demo</button>`) +
-    `<div class="banner">${icon("info")}Import replaces one table at a time. Completed forms retain their saved values. Drafts use the latest data when completed.</div><div class="data-grid">${sourceCard("shipto","Internals","Destination, delivery number and shipping priority",["Outbound Delivery Order","ERP Document","Handling Unit","Ship-To","Shipping Condition","External Delivery ID"])}${sourceCard("quantities","Quantities","Item quantities, summed per handling unit",["Document","Handling Unit","Quantity"])}</div>
-    <div class="diagnostics card"><div class="card-body"><h2>Source consistency</h2><p class="mb0" style="font-size:11px">${!state.sources.shipto||!state.sources.quantities?"Load both tables to compare HU coverage.":mismatch?`${mismatch} HUs are missing from one source. Affected forms will be flagged.`:"Both tables contain the same HUs."}</p>${mismatch?`<details class="mt"><summary>Show unmatched HUs</summary><pre>Missing Quantities: ${esc(diagnostics.missingQuantities.join(", ")) || "None"}\nMissing Ship-to: ${esc(diagnostics.missingShipto.join(", ")) || "None"}</pre></details>`:""}</div></div>
-    <div class="integration-grid"><div class="integration-card">${icon("link")}<div><h3>Spotfire integration</h3><p>Ready for the dedicated report. SAP table imports are the active source.</p></div><span class="pill draft">Not connected</span></div><div class="integration-card">${icon("database")}<div><h3>Shared tracking</h3><p>Local loading confirmations are available. Shared phone access will connect in the next phase.</p></div><span class="pill draft">Next phase</span></div></div>`;
+  return heading("Data workspace","Data infeed","Connect Spotfire or paste/import the two SAP tables.",`<button class="btn" data-action="demo">${icon("grid")}Load fictional demo</button>`) +
+    `${renderSpotfire()}<h2 class="mt">SAP paste/import</h2><div class="banner">${icon("info")}Applying a SAP table switches the active source to SAP. Import replaces one table at a time. Completed forms retain their saved values. Drafts use the latest data when completed.</div><div class="data-grid">${sourceCard("shipto","Internals","Destination, delivery number and shipping priority",["Outbound Delivery Order","ERP Document","Handling Unit","Ship-To","Shipping Condition","External Delivery ID"])}${sourceCard("quantities","Quantities","Item quantities, summed per handling unit",["Document","Handling Unit","Quantity"])}</div>
+    <div class="diagnostics card"><div class="card-body"><h2>Source consistency</h2><p class="mb0" style="font-size:11px">${!currentSources().shipto||!currentSources().quantities?"Load both tables to compare HU coverage.":mismatch?`${mismatch} HUs are missing from one source. Affected forms will be flagged.`:"Both tables contain the same HUs."}</p>${mismatch?`<details class="mt"><summary>Show unmatched HUs</summary><pre>Missing Quantities: ${esc(diagnostics.missingQuantities.join(", ")) || "None"}\nMissing Ship-to: ${esc(diagnostics.missingShipto.join(", ")) || "None"}</pre></details>`:""}</div></div>
+`;
 }
 
 function matches(record) {
@@ -262,8 +285,8 @@ function sourceDate(value, time=false) {
 }
 function renderOpenOrders() {
   const assigned = new Set(state.forms.filter(f=>f.palletId&&!f.removedAt).flatMap(f=>f.lines.map(l=>l.hu).filter(Boolean)));
-  const rows=(state.sources.shipto?.rows||[]).filter(r=>!assigned.has(r.hu)&&matches(r));
-  return heading("Shipping workload","Open orders","Imported HUs not yet assigned to a pallet. Refresh the SAP data to update locations.") + `<div class="view-toolbar"><strong>${rows.length} open HUs · ${new Set(rows.map(r=>r.dn)).size} DNs</strong><label class="search-box">${icon("search")}<input id="record-search" aria-label="Search open orders" placeholder="Search DN, HU, bin or ship-to…" value="${esc(search)}"></label></div><section class="card table-wrap"><table class="record-table"><thead><tr><th>DN</th><th>HU</th><th>Storage bin</th><th>Ship-to</th><th>Changed on</th><th>Changed at</th></tr></thead><tbody>${rows.map(r=>`<tr>${[r.dn,r.hu,r.bin,r.shipTo,sourceDate(r.changedOn),sourceDate(r.changedAt,true)].map(v=>`<td>${esc(v)||"—"}</td>`).join("")}</tr>`).join("")||`<tr><td colspan="6"><div class="empty">No open orders. Import SAP data or check your filter.</div></td></tr>`}</tbody></table></section>`;
+  const rows=(currentSources().shipto?.rows||[]).filter(r=>!assigned.has(r.hu)&&matches(r));
+  return heading("Shipping workload","Open orders","Imported HUs not yet assigned to a pallet. Spotfire checks every minute; SAP data updates when applied.") + `<div class="view-toolbar"><strong>${rows.length} open HUs · ${new Set(rows.map(r=>r.dn)).size} DNs</strong><label class="search-box">${icon("search")}<input id="record-search" aria-label="Search open orders" placeholder="Search DN, HU, bin or ship-to…" value="${esc(search)}"></label></div><section class="card table-wrap"><table class="record-table"><thead><tr><th>DN</th><th>HU</th><th>Storage bin</th><th>Ship-to</th><th>Changed on</th><th>Changed at</th></tr></thead><tbody>${rows.map(r=>`<tr>${[r.dn,r.hu,r.bin,r.shipTo,sourceDate(r.changedOn),sourceDate(r.changedAt,true)].map(v=>`<td>${esc(v)||"—"}</td>`).join("")}</tr>`).join("")||`<tr><td colspan="6"><div class="empty">No open orders. Check the active source or your filter.</div></td></tr>`}</tbody></table></section>`;
 }
 
 function palletContents(forms) {
@@ -353,8 +376,20 @@ async function mutate(action, payload) {
 async function resolveEditor() {
   if (editor.mode!=="automatic") return;
   const request = ++resolving, currentEditor = editor;
-  const result = await api("resolve",{lines:editor.lines,formId:editor.id,destination:editor.destinationOverride?editor.destination:null,overrideReason:editor.overrideReason});
+  const result = await api("resolve",{lines:editor.lines,formId:editor.id,destination:editor.destinationOverride?editor.destination:null,overrideReason:editor.overrideReason,weert1aChoice:editor.weert1aChoice});
   if (request!==resolving || currentEditor!==editor) return;
+  if (result.requiresWeert1aChoice && view === "create" && !$("#dialog").open) {
+    const choice = await new Promise(resolve => {
+      showDialog("Weert 1A — Scrap or Normal?", `<div class="dialog-body"><p>Spotfire does not contain External Delivery ID. Choose the route for these HUs before continuing.</p><p>${result.weert1aHus.map(esc).join(", ")}</p></div>`, `<button class="btn" data-action="weert-choice" data-mode="normal">Normal / Re-use</button><button class="btn primary" data-action="weert-choice" data-mode="scrap">Scrap</button>`);
+      dialogCallback = resolve;
+    });
+    if (request!==resolving || currentEditor!==editor) return;
+    if (choice) {
+      editor.weert1aChoice = {mode:choice,hus:result.weert1aHus};
+      await resolveEditor();
+      return;
+    }
+  }
   const filled = editor.lines.filter(l=>["part","description","qty","hu","dn"].some(k=>l[k]));
   result.lines.forEach((line,i)=>{
     if (filled[i]) Object.assign(filled[i],line);
@@ -455,6 +490,26 @@ const actions = {
     if(!await confirmAction("Create loading manifest?",`Include all ${readyForLoad(building).length} ready pallets for ${building}? They will be reserved for this truck. Open pallets are excluded.`,"Create manifest"))return;
     const result=await mutate("create_load",{building});selectedLoad=result.loadId;view="loads";render();toast("Manifest created. Preview or print the driver copy when ready.");
   },
+  async "weert-choice"(button) {
+    const done = dialogCallback;
+    dialogCallback = null;
+    $("#dialog").close();
+    done?.(button.dataset.mode);
+  },
+  async "spotfire-connect"() {
+    await mutate("settings", {spotfireUrl:$("#spotfire-url").value,spotfireBrowser:$("#spotfire-browser").value,spotfireEnabled:$("#spotfire-enabled").value === "on",dataSource:"spotfire"});
+    if (state.settings.spotfireEnabled) await api("spotfire-start", {});
+    await loadState();
+    render();
+  },
+  async "spotfire-refresh"() { await api("spotfire-start", {}); await loadState(); render(); },
+  async "spotfire-file"() { $("#spotfire-file").click(); },
+  async "source-select"(button) {
+    await mutate("settings", {dataSource:button.dataset.source});
+    if (button.dataset.source === "spotfire" && state.settings.spotfireEnabled) await api("spotfire-start", {});
+    resolveResult = null;
+    render();
+  },
   async "cloud-login"() {
     const email = $("#cloud-email").value;
     const password = $("#cloud-password").value;
@@ -540,7 +595,7 @@ const actions = {
   async "close-dialog"() { stopCamera(); if(dialogCallback){const done=dialogCallback;dialogCallback=null;done(false);}$("#dialog").close(); },
   async "cancel-confirm"() { const done=dialogCallback;dialogCallback=null;$("#dialog").close();done?.(false); },
   async "accept-confirm"() { const input=$("#confirm-reason");const value=input?input.value.trim():true;if(input&&!value){input.focus();return;}const done=dialogCallback;dialogCallback=null;$("#dialog").close();done?.(value); },
-  async help() { showDialog("Your shipping workflow",`<div class="dialog-body"><h3>1. Load the SAP data</h3><p>Open Data infeed. Paste Ship-to and Quantities including their headers, or import the XLSX files. Click Validate &amp; apply for each table.</p><h3>2. Prepare a form</h3><p>Paste HUs into the form. DN, destination, quantity and Emergency fill automatically. Add descriptions, part numbers and remarks as needed. Use Manual mode for exceptions.</p><h3>3. Build the pallet</h3><p>Choose Print &amp; keep open to save the form and print one copy by default, without a browser print screen. Select that pallet on the right to add more forms. Start a different pallet if the destination changes.</p><h3>4. Finalise when ready</h3><p>Finalisation prints two copies by default of a consolidation listing every delivery and HU. Open History to reprint, inspect revisions or reopen a pallet for correction.</p><div class="banner">${icon("info")}This phase saves on this computer. Loading manifests and QR scans work in this local workspace. Shared phone access and Spotfire are not connected yet.</div></div>`,`<button class="btn primary" data-action="close-dialog">Start preparing</button>`); },
+  async help() { showDialog("Your shipping workflow",`<div class="dialog-body"><h3>1. Connect your data</h3><p>Sign in in the Spotfire tab. Data Table Monitor is checked every minute. Data infeed shows connection status and also accepts Spotfire CSV exports. For SAP fallback, paste Internals and Quantities and click Validate &amp; apply.</p><h3>2. Prepare a form</h3><p>Paste HUs into the form. DN, destination, quantity and Emergency fill automatically. Add descriptions, part numbers and remarks as needed. Use Manual mode for exceptions.</p><h3>3. Build the pallet</h3><p>Choose Print &amp; keep open to save the form and print one copy by default, without a browser print screen. Select that pallet on the right to add more forms. Start a different pallet if the destination changes.</p><h3>4. Finalise when ready</h3><p>Finalisation prints two copies by default of a consolidation listing every delivery and HU. Open History to reprint, inspect revisions or reopen a pallet for correction.</p><div class="banner">${icon("info")}Spotfire uses your signed-in report tab. Choose Scrap or Normal when prompted for Weert 1A. Documents are saved on this computer; published manifests also support shared driver tracking.</div></div>`,`<button class="btn primary" data-action="close-dialog">Start preparing</button>`); },
   async shutdown() { if(!await confirmDiscard())return;if(!await confirmAction("Close TransportOrder?","Your saved drafts, forms and pallets will be available next time you start the application.","Close application"))return;await api("shutdown",{});dirty=false;sessionStorage.removeItem("transport-order.editor");$("#dialog").close();$("#main").innerHTML=heading("Workspace closed","All saved work is kept","You can close this window. Run the application again to continue."); },
   async demo() {
     if(!await confirmAction("Load fictional SAP data?","This replaces both imported tables with clearly fictional records. Existing forms and pallets are kept.","Load demo tables"))return;
@@ -585,6 +640,21 @@ document.addEventListener("input",event=>{
 document.addEventListener("change",async event=>{
   const input=event.target;
   try {
+    if (input.dataset.spotfireFile) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 20_000_000) throw new Error("Use a Spotfire CSV smaller than 20 MB.");
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      const result = await api("spotfire-import", {fileBase64:btoa(binary)});
+      await loadState();
+      resolveResult = null;
+      render();
+      toast(`Spotfire data applied · ${result.uniqueHus} HUs`);
+      return;
+    }
+
     if(input.dataset.lineField==="hu"&&editor.mode==="automatic")await resolveEditor();
     if(input.dataset.field?.startsWith("destination.")||input.dataset.field?.startsWith("origin."))render();
     if(input.dataset.field==="overrideReason"&&editor.mode==="automatic")await resolveEditor();
@@ -663,6 +733,17 @@ $("#power-icon").innerHTML=icon("power");
     const scan=new URLSearchParams(location.hash.slice(1)).get("scan");
     if(scan){view="loads";selectedLoad=null;render();openScanner();await acceptScan(scan);}
     setInterval(async()=>{if(!state)return;const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Amsterdam'}).format(new Date());if(day!==state.workspaceDay){try{await loadState();selectedPallet=null;selectedLoad=null;dirty=false;editor=newEditor();render();toast("New day started. Previous work has been archived.");}catch{}}},60000);
+    setInterval(async () => {
+      if (busy || document.hidden) return;
+      try {
+        await loadState(true);
+        const count = $("#open-hu-count");
+        if (count) count.textContent = `${nfmt(unprocessedHuCount())} unprocessed HUs`;
+        if (view === "open-orders" && !$("#dialog").open && !["INPUT","SELECT","TEXTAREA"].includes(document.activeElement?.tagName)) $("#main").innerHTML = renderOpenOrders();
+        const status = $("#spotfire-state");
+        if (status) status.textContent = spotfireStatusText();
+      } catch {}
+    }, 5000);
     const poll=()=>setTimeout(async()=>{await checkDockReminders();poll();},30000);poll();
   } catch(error) { $("#main").innerHTML=heading("Workspace unavailable","Open the application link",esc(error.message)); }
 })();
