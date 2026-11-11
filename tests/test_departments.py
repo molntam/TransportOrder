@@ -35,6 +35,7 @@ class DepartmentTests(unittest.TestCase):
         self.assertEqual(record['origin']['department'], 'Stagnation')
         self.assertEqual(record['origin']['building'], 'Building 58')
         self.assertEqual(len(record['handoffToken']), 64)
+        self.assertTrue(document_model(self.state, 'form', record['id'], 1)['qrPlaceholder'])
         with patch('transport_order.printing.matrix', return_value=[]) as qr:
             document_model(self.state, 'form', record['id'], 1)
         qr.assert_called_once_with(SITE+'#handoff='+record['handoffToken'])

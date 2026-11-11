@@ -202,7 +202,7 @@ async function main() {
   assert.equal(execute('editor.origin.department'),"Stagnation");
   const jsQR=require(path.join(root,"transport_order/web/jsQR.js"));
   const {spawnSync}=require("node:child_process");
-  for(const payload of ["TO:PALLET:P-123456789ABC:1","http://127.0.0.1:8765/#scan=TO:LOAD:LOAD-123456789ABC:1"]) {
+  for(const payload of ["TO:PALLET:P-123456789ABC:1","http://127.0.0.1:8765/#scan=TO:LOAD:LOAD-123456789ABC:1","https://molntam.github.io/TransportOrder/#handoff="+"a".repeat(64)]) {
     const qr=spawnSync(process.env.PYTHON||"python",["-c","import json,sys;from transport_order.qr import matrix;print(json.dumps(matrix(sys.argv[1])))",payload],{cwd:root,encoding:"utf8"});
     assert.equal(qr.status,0,qr.stderr);
     const matrix=JSON.parse(qr.stdout),scale=6,width=(matrix.length+8)*scale,pixels=new Uint8ClampedArray(width*width*4).fill(255);

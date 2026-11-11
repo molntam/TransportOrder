@@ -35,6 +35,7 @@ revoke all on public.to_department_orders from public,anon,authenticated;
 grant select on public.to_department_orders to authenticated;
 create policy member_read on public.to_department_orders for select to authenticated using(transport_private.has_role(workspace_id,array['admin','operator','viewer']));
 create index to_department_orders_recent on public.to_department_orders(workspace_id,created_at desc);
+create index to_department_orders_receiver on public.to_department_orders(received_by) where received_by is not null;
 create index to_department_orders_pallet on public.to_department_orders(workspace_id,pallet_id) where pallet_id is not null;
 
 create table transport_private.handoff_links (

@@ -86,6 +86,40 @@ class CloudTests(unittest.TestCase):
         self.assertEqual(self.store.state['loads'][0]['status'], 'partial')
         self.assertEqual(self.store.state['pallets'][0]['collectedAt'], 'pickup')
 
+    def test_refresh_releases_leftovers_and_keeps_delivery_details(self):
+        self.publish()
+        payload = {'status':'partial','pallets':[], 'releasedPallets':[{'id':self.pid,'releasedAt':'released','reason':'Truck full'}],
+                   'driver':'Driver','vehicle':'TRUCK','reason':'Truck full','collectedAt':'pickup','leftBehindCount':1}
+        with patch.object(self.cloud, 'request', return_value=payload):
+            self.cloud.refresh(self.store, self.lid)
+            revision = self.store.state['revision']
+            self.cloud.refresh(self.store, self.lid)
+        self.assertEqual(self.store.state['revision'], revision)
+        pallet = self.store.state['pallets'][0]
+        self.assertEqual(pallet['releaseReason'], 'Truck full')
+        self.assertNotIn('collectedAt', pallet)
+        from transport_order.loads import ready_pallets
+        self.assertIn(self.pid, {p['id'] for p in ready_pallets(self.store.state, 'Building 21')})
+        delivered = {**payload,'status':'delivered','receiver':'Receiver Test','deliveredAt':'delivered',
+                     'releasedPallets':[], 'pallets':[{'id':self.pid,'scannedAt':'scan','collectedAt':'pickup','deliveredAt':'delivered'}]}
+        with patch.object(self.cloud,'request',return_value=delivered):
+            self.cloud.refresh(self.store,self.lid)
+        self.assertEqual(self.store.state['loads'][0]['receiver'],'Receiver Test')
+        self.assertEqual(self.store.state['pallets'][0]['receiver'],'Receiver Test')
+
+    def test_failed_status_check_keeps_saved_state(self):
+        self.publish()
+        before = self.store.snapshot()
+        with patch.object(self.cloud,'request',side_effect=InputError('Network interrupted')):
+            with self.assertRaises(InputError):self.cloud.refresh(self.store,self.lid)
+        self.assertEqual(self.store.state,before)
+
+    def test_received_open_pallet_can_be_finalised_and_published(self):
+        self.records.append({'id':self.pid,'status':'open','revision':0,'row_version':1})
+        self.publish()
+        self.assertEqual(self.calls.count('save_pallet'),1)
+        self.assertEqual(self.calls.count('create_manifest'),1)
+
     def test_pairing_is_verified_and_persisted_without_login(self):
         self.cloud = Cloud(self.tmp.name)
         with patch.object(self.cloud, 'request', return_value=[]) as request:

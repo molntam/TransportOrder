@@ -1,9 +1,9 @@
-import copy
 import json
 import os
 import sys
 import tempfile
 import threading
+from datetime import datetime, timedelta, timezone
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -49,6 +49,9 @@ def main():
     website = run_server(static)
     temporary = tempfile.TemporaryDirectory()
     store = Store(temporary.name)
+    store.snapshot()
+    local_time=datetime.now(timezone.utc)+timedelta(hours=1)
+    store.state['sources']['shipto']={'rows':[{'hu':'FIFO-HU','dn':'FIFO-EMERGENCY','document':'FIFO-ODO','condition':'S4','shipTo':'NL15C','externalId':'','bin':'PS_READY-INT','changedOn':local_time.strftime('%d.%m.%Y'),'changedAt':local_time.strftime('%H:%M:%S')}], 'count':1,'uniqueHus':1,'importedAt':datetime.now(timezone.utc).isoformat(),'warnings':[],'filename':'Browser fixture'}
     desktop = create_server(store,'browser-session',0)
     app_url = run_server(desktop)
     errors = []
@@ -66,6 +69,8 @@ def main():
                     counts={stage:sum(r['stage']==stage for r in candidates) for stage in ('in_process','ready','collected','delivered')}
                     found=[r for r in candidates if not payload.get('p_stage') or r['stage']==payload['p_stage']]
                     route.fulfill(json={'records':found,'total':len(found),'counts':counts,'hasMore':False,'authorized':True})
+                elif route.request.url.endswith('/transport_driver'):
+                    route.fulfill(json={'id':'LOAD-RELOAD','revision':1,'rowVersion':1,'building':'Building 21','status':'ready','createdAt':'2026-11-11T09:00:00Z','pallets':[{'id':'P-RELOAD','revision':1,'destination':{'building':'Building 21','department':'Motion','shipTo':'NL15C'},'forms':[{'id':'TO-RELOAD','lines':[{'dn':'RELOAD-DN','hu':'RELOAD-HU','qty':'1'}]}]}]})
                 elif '/auth/v1/token' in route.request.url:
                     route.fulfill(json={'access_token':'browser-access','refresh_token':'browser-refresh','expires_in':3600})
                 else:
@@ -133,7 +138,18 @@ def main():
             expect(page.locator('#navigation')).to_contain_text('FIFO tracker')
             page.get_by_role('button',name='FIFO tracker',exact=True).click()
             expect(page.get_by_role('heading',name='FIFO tracker',exact=True)).to_be_visible()
+            expect(page.locator('#main')).to_contain_text('FIFO-EMERGENCY')
+            expect(page.locator('#fifo-alerts')).to_contain_text('Please process ASAP')
             page.screenshot(path=str(OUT/'fifo-tracker.png'),full_page=True)
+            page.goto(website+'#'+TOKEN)
+            expect(page.locator('h1')).to_have_text('Building 21')
+            page.reload()
+            expect(page.locator('h1')).to_have_text('Building 21')
+            assert page.url.endswith('#'+TOKEN)
+            page.locator('.brand').click()
+            expect(page.get_by_role('heading',name='Return to your shipment')).to_be_visible()
+            page.get_by_role('link',name='Building 21 · LOAD-RELOAD',exact=True).click()
+            expect(page.locator('h1')).to_have_text('Building 21')
             page.goto(website+'?demo=1')
             expect(page.get_by_role('heading',name='Building 21',exact=True).first).to_be_visible()
             page.set_viewport_size({'width':390,'height':844})

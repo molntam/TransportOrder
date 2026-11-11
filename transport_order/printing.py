@@ -32,6 +32,7 @@ def document_model(state, kind, record_id, revision, base_url=""):
     version = next((v for v in record["versions"] if v["revision"] == revision), None)
     if not version:
         raise InputError("There is no completed document for this revision.")
+    handoff_token = version.get("handoffToken") if kind == "form" else None
     obsolete = bool(record.get("removedAt")) or record["revision"] != revision or (kind == "pallet" and record["status"] != "finalised") or (kind == "form" and record["status"] != "complete")
     forms = [version] if kind == "form" else version["forms"]
     lines = [line for form in forms for line in form["lines"]]
@@ -62,9 +63,9 @@ def document_model(state, kind, record_id, revision, base_url=""):
             "status": ("Individual transport form · " if kind == "form" else "Finalised pallet · ") + f"{len(hus)} HUs · {len(dns)} deliveries",
             "columns": columns, "rows": [[str(line.get(c["key"], "")) for c in columns] for line in lines],
             "summary": [[dn, str(len(v["hus"])), format(v["qty"], "f")] for dn, v in sorted(summary.items())],
-            "remarks": remarks.strip(), "contact": contact, "obsolete": obsolete, "qrPlaceholder": kind == "pallet",
+            "remarks": remarks.strip(), "contact": contact, "obsolete": obsolete, "qrPlaceholder": kind == "pallet" or bool(handoff_token),
             "qr": matrix(f"TO:PALLET:{record_id}:{revision}") if kind == "pallet" else
-                matrix("https://molntam.github.io/TransportOrder/#handoff=" + record["handoffToken"]) if record.get("handoffToken") else []}
+                matrix("https://molntam.github.io/TransportOrder/#handoff=" + handoff_token) if handoff_token else []}
 
 
 def address(location):
