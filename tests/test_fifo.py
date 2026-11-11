@@ -37,6 +37,10 @@ class FifoTests(unittest.TestCase):
     def test_other_bins_and_conditions_ignored(self):
         for row in ({'bin':'INTER-IN'}, {'bin':'PRE-STAGING'}, {'bin':'PS_READY-INT-OTHER'}, {'condition':'S9'}):
             self.assertEqual(fifo_status(self.state(**row))['alerts'], [])
+            result=fifo_status(self.state(**row))
+            self.assertEqual(len(result['notCounted']), 1)
+            self.assertIsNone(result['notCounted'][0]['ageHours'])
+            self.assertIsNone(result['notCounted'][0]['limitHours'])
 
     def test_missing_and_future_timestamp(self):
         result = fifo_status(self.state(changedAt='broken'))

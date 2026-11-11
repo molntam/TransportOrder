@@ -143,6 +143,28 @@ def main():
             expect(page.locator('#main')).to_contain_text('FIFO-EMERGENCY')
             expect(page.locator('#fifo-alerts')).to_contain_text('Please process ASAP')
             page.screenshot(path=str(OUT/'fifo-tracker.png'),full_page=True)
+            from transport_order.cloud import Cloud
+            incoming={'id':'TO-SCANNER','revision':1,'createdAt':'2026-11-11T09:00:00Z','sourceDepartment':{'name':'Small Pack','location':'Building 05'},'destination':{'building':'Building 21','department':'Motion','shipTo':'NL15C'},'lines':[{'hu':'SCANNER-HU','dn':'SCANNER-DN','qty':'1'}]}
+            desktop.cloud.device_token='browser-device'
+            desktop.cloud.department_orders=lambda:[incoming]
+            def preview(code):
+                assert Cloud.handoff_token(code)==TOKEN
+                return {'form':incoming,'receivedAt':None}
+            desktop.cloud.handoff_preview=preview
+            page.locator('#refresh-button').click()
+            page.get_by_role('button',name='Create order',exact=True).click()
+            expect(page.locator('#incoming-order-count')).to_have_text('1')
+            page.get_by_role('button',name='Pallets',exact=True).click()
+            expect(page.locator('.incoming-orders')).to_contain_text('Small Pack')
+            expect(page.locator('.incoming-orders')).to_contain_text('SCANNER-DN')
+            page.locator('.incoming-orders').get_by_role('button',name='Receive transport order',exact=True).click()
+            expect(page.locator('#dialog video')).to_have_count(0)
+            expect(page.get_by_role('button',name='Start camera',exact=True)).to_have_count(0)
+            page.locator('#scan-input').fill(('https://molntam.github.io/TransportOrder/#handoff='+TOKEN).upper())
+            expect(page.locator('#handoff-preview')).to_contain_text('Small Pack')
+            expect(page.get_by_role('button',name='Receive as Open Pallet',exact=True)).to_be_visible()
+            page.screenshot(path=str(OUT/'scanner-receiving.png'),full_page=True)
+            page.get_by_role('button',name='Close',exact=True).click()
             page.goto(website+'#'+TOKEN)
             expect(page.locator('h1')).to_have_text('Building 21')
             page.reload()

@@ -4,6 +4,12 @@
 
 A local shipping workspace for preparing transport orders between warehouses in the Netherlands. The interface uses ASML-inspired blue, larger Segoe UI text, stronger contrast, and light/dark themes, with the form in the centre and open pallets on the right.
 
+## Changes in 0.9.2
+
+- Department receiving uses the connected QR scanner, without camera controls. Scanner letter-case changes in the handover URL and token are accepted. Complete scans are checked automatically, with Enter/manual submission also supported.
+- Published department transport orders appear under Pallets as **Awaiting receipt**. The receiving button shows their count. Authorized workstations refresh incoming orders every 15 seconds; a failed refresh retains the last known list and shows an error.
+- Open Orders is combined with FIFO tracker. **Not counted** lists material outside the FIFO rules, including DN, HU, ship-to, storage bin and SAP change time. S4/I2 orders in INTER-IN still raise emergency alerts.
+
 ## Changes in 0.9.0
 
 - The tracking website opens with global search and ten building tabs. Each building separates **In process**, **Ready for Pick-up**, **Collected** and **Delivered**. Building names lead the cards. The current search, category and expanded document survive reloads; sign-in remains saved until sign-out or session revocation.

@@ -74,10 +74,23 @@ class DepartmentTests(unittest.TestCase):
     def test_handover_qr_origin_and_kind_validation(self):
         token='a'*64
         self.assertEqual(Cloud.handoff_token(SITE+'#handoff='+token),token)
+        self.assertEqual(Cloud.handoff_token((SITE+'#handoff='+token).swapcase()),token)
+        self.assertEqual(Cloud.handoff_token(('TO:HANDOFF:'+token).upper()),token)
         self.assertEqual(Cloud.handoff_token('TO:HANDOFF:'+token),token)
         for value in ('https://evil.invalid/TransportOrder/#handoff='+token, 'TO:PALLET:P-A:1', SITE+'#'+token):
             with self.assertRaises(InputError):
                 Cloud.handoff_token(value)
+
+    def test_incoming_orders_exclude_received_revisions_and_do_not_duplicate(self):
+        source = {'id':'TO-A','sourceDepartment':{'name':'Small Pack'}}
+        documents = [
+            {'reference_id':'TO-A','revision':1,'snapshot':source},
+            {'reference_id':'TO-A','revision':2,'snapshot':{**source,'handoffSourceId':'TO-A'}},
+            {'reference_id':'TO-B','revision':1,'snapshot':{**source,'id':'TO-B'}},
+            {'reference_id':'TO-OTHER','revision':1,'snapshot':{'id':'TO-OTHER'}},
+        ]
+        with patch.object(Cloud,'rows',return_value=documents):
+            self.assertEqual([f['id'] for f in Cloud().department_orders()],['TO-B'])
 
     def test_publication_failure_and_retry_keep_the_same_document(self):
         with tempfile.TemporaryDirectory() as directory:

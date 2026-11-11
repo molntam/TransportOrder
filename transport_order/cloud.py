@@ -206,17 +206,27 @@ class Cloud:
     @staticmethod
     def handoff_token(value):
         from urllib.parse import urlsplit, parse_qs
-        value = str(value).strip()
-        if value.startswith('TO:HANDOFF:'):
-            value = value.removeprefix('TO:HANDOFF:')
+        value = str(value).strip().lower()
+        if value.startswith('to:handoff:'):
+            value = value.removeprefix('to:handoff:')
         elif value.startswith('https://'):
             url = urlsplit(value)
-            if (url.hostname, url.path) != ('molntam.github.io', '/TransportOrder/'):
+            if (url.hostname, url.path) != ('molntam.github.io', '/transportorder/'):
                 raise InputError('Scan a TransportOrder department handover QR.')
             value = parse_qs(url.fragment).get('handoff', [''])[0]
         if not re.fullmatch('[a-f0-9]{64}', value):
             raise InputError('Scan a department transport order QR, not a pallet or manifest.')
         return value
+
+    def department_orders(self):
+        latest = {}
+        for document in self.rows('to_documents', kind='form'):
+            previous = latest.get(document['reference_id'])
+            if previous is None or document['revision'] > previous['revision']:
+                latest[document['reference_id']] = document
+        return [copy.deepcopy(doc['snapshot']) for doc in latest.values()
+                if doc['snapshot'].get('sourceDepartment') and not doc['snapshot'].get('handoffSourceId')
+                and not doc['snapshot'].get('receivedAt')]
 
     def handoff_preview(self, value):
         return self.rpc('get_department_order', {'token': self.handoff_token(value)})

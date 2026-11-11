@@ -56,11 +56,10 @@ def fifo_status(state, moment=None):
         moment = moment.replace(tzinfo=timezone.utc)
     collected = {p["id"] for p in state["pallets"] if p.get("collectedAt")}
     departed = {l.get("hu") for f in state["forms"] if f.get("palletId") in collected for l in f["lines"]}
+    assigned = {l.get("hu") for f in state['forms'] if f.get('palletId') and not f.get('removedAt') for l in f['lines']}
     latest = {}
     for row in (active_sources(state).get("shipto") or {}).get("rows", []):
         condition, bin_name = str(row.get("condition", "")).strip().upper(), str(row.get("bin", "")).strip().upper()
-        if condition not in LIMITS or bin_name not in ({"PS_READY-INT", "INTER-IN"} if LIMITS[condition] == 0 else {"PS_READY-INT"}):
-            continue
         if row.get("hu") in departed:
             continue
         at = changed_at(row.get("changedOn"), row.get("changedAt"))
@@ -68,15 +67,22 @@ def fifo_status(state, moment=None):
         previous = latest.get(key)
         if previous is None or (at and (previous[1] is None or at > previous[1])):
             latest[key] = (row, at)
-    alerts, pending, missing = [], [], []
+    alerts, pending, missing, not_counted = [], [], [], []
     for row, at in latest.values():
-        limit = LIMITS[str(row["condition"]).strip().upper()]
+        condition = str(row.get('condition', '')).strip().upper()
+        limit = LIMITS.get(condition)
+        monitored = limit is not None and str(row.get('bin', '')).strip().upper() in ({'PS_READY-INT','INTER-IN'} if limit == 0 else {'PS_READY-INT'})
+        if not monitored and row.get('hu') in assigned:
+            continue
         age = max(0, (moment - at).total_seconds() / 3600) if at else None
-        item = {"dn": row.get("dn", ""), "hu": row.get("hu", ""), "bin": row["bin"],
+        item = {"dn": row.get("dn", ""), "hu": row.get("hu", ""), "bin": row.get("bin", ""),
                 "condition": row["condition"], "limitHours": limit, "ageHours": round(age, 2) if age is not None else None,
                 "changedAt": at.isoformat() if at else None, "changedDisplay": display_time(at.isoformat()) if at else "Missing SAP timestamp",
-                "emergency": limit == 0}
-        if limit == 0 or (age is not None and age >= limit):
+                "shipTo": row.get('shipTo', ''), "emergency": monitored and limit == 0}
+        if not monitored:
+            item.update(ageHours=None, limitHours=None)
+            not_counted.append(item)
+        elif limit == 0 or (age is not None and age >= limit):
             alerts.append(item)
         elif at is None:
             missing.append(item)
@@ -90,5 +96,5 @@ def fifo_status(state, moment=None):
             text = (f"There is an emergency order(s) {', '.join(dns)}. Please process ASAP." if limit == 0 else
                     f"Warning, these deliveries {', '.join(dns)} are stagnant for more than {limit} hours on PS_READY-INT. Please take action.")
             messages.append({"emergency": limit == 0, "text": text, "dns": dns})
-    return {"alerts": alerts, "pending": pending, "missing": missing, "messages": messages,
+    return {"alerts": alerts, "pending": pending, "missing": missing, "notCounted": not_counted, "messages": messages,
             "checkedAt": moment.isoformat(), "timeBasis": "SAP Changed On / Changed At · Europe/Amsterdam"}

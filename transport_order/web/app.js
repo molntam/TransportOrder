@@ -139,6 +139,7 @@ async function api(path, payload, raw=false) {
 }
 
 let editorBaseRevision=null;
+let departmentOrders=[],departmentOrdersError="";
 let fifoStatus={};
 let deferredBusinessRender=false;
 let syncError="";
@@ -164,6 +165,7 @@ function renderSpotfire() {
 }
 async function loadState(background=false) {
   const result = await api("state");
+  departmentOrders=result.departmentOrders||[];departmentOrdersError=result.departmentOrdersError||"";
   cloudStatus=result.archiveStatus||{};fifoStatus=result.fifoStatus||{};syncError=result.syncError||"";
   spotfireStatus=result.spotfireStatus||{};
   state = result.state;
@@ -175,7 +177,7 @@ async function loadState(background=false) {
 
 function updateShell() {
   applyTheme();
-  let items = [["create","form","Create order"],["infeed","database","Data infeed"],["fifo","clock","FIFO tracker"],["open-orders","truck","Open orders"],["pallets","box","Pallets"],["loads","truck","Truck loading"],["docks","clock","Dock slots"],["history","history","History"],["settings","settings","Settings"]];
+  let items = [["create","form","Create order"],["infeed","database","Data infeed"],["fifo","clock","FIFO tracker"],["pallets","box","Pallets"],["loads","truck","Truck loading"],["docks","clock","Dock slots"],["history","history","History"],["settings","settings","Settings"]];
   if(!deliveryOps()){items=items.filter(([id])=>["create","history","settings"].includes(id));if(!items.some(([id])=>id===view))view="create";}
   $("#navigation").innerHTML = items.map(([id,ico,label])=>`<button class="nav-item ${view===id?"active":""}" data-action="navigate" data-view="${id}" title="${label}" ${view===id?'aria-current="page"':''}>${icon(ico)}<span>${label}</span>${id==="pallets"&&state.pallets.some(p=>p.status==="open")?`<b class="nav-count">${state.pallets.filter(p=>p.status==="open").length}</b>`:""}</button>`).join("");
   $("#page-label").textContent = items.find(i=>i[0]===view)?.[2] || "Create order";
@@ -223,7 +225,7 @@ function renderCreate() {
   const missingData = !currentSources().shipto || !currentSources().quantities;
   const ops=deliveryOps();
   return heading(ops?"Shipment workspace":esc(state.settings.departmentName),editor.id?"Edit transport order":"Prepare a transport order","Build the order, check its destination and keep your pallet moving.") +
-    `${ops?`<div class="banner"><strong id="open-hu-count">${nfmt(openHus)} unprocessed HUs</strong><span>Not yet assigned to a pallet in today's active data source.</span><button class="subtle-button" data-action="navigate" data-view="open-orders">View open orders</button><button class="btn small" data-action="receive-order">${icon("scan")}Receive transport order</button></div>`:`<div class="banner">${icon("info")}Print a QR transport order for handover to Delivery Operations. Its online status starts at ${esc(state.settings.departmentName)}.</div>`}<div class="work-grid ${ops?"":"department-work"}"><div class="form-column">${editor.id?`<div class="banner">${icon("edit")}Editing ${esc(editor.id)} · ${editor.mode==="automatic"?"Source lookups will be checked again when saved.":"Manual values are preserved."}<button class="subtle-button" data-action="new-form">New form</button></div>`:""}
+    `${ops?`<div class="banner"><strong id="open-hu-count">${nfmt(openHus)} unprocessed HUs</strong><span>Not yet assigned to a pallet in today's active data source.</span><button class="subtle-button" data-action="navigate" data-view="fifo">View open orders</button><button class="btn small" data-action="receive-order">${icon("scan")}Receive transport order${incomingBadge()}</button></div>`:`<div class="banner">${icon("info")}Print a QR transport order for handover to Delivery Operations. Its online status starts at ${esc(state.settings.departmentName)}.</div>`}<div class="work-grid ${ops?"":"department-work"}"><div class="form-column">${editor.id?`<div class="banner">${icon("edit")}Editing ${esc(editor.id)} · ${editor.mode==="automatic"?"Source lookups will be checked again when saved.":"Manual values are preserved."}<button class="subtle-button" data-action="new-form">New form</button></div>`:""}
     ${missingData&&editor.mode==="automatic"?`<div class="banner warn">${icon("database")}Load SAP Internals and Quantities in Data infeed to fill destination, quantity and DN.<button class="subtle-button" data-action="navigate" data-view="infeed">Data infeed ${icon("arrow")}</button></div>`:""}
     <section class="card"><div class="card-head"><div class="card-title"><span class="card-number">01</span><h2>Shipment details</h2></div>${ops?`<div class="segmented" aria-label="Entry mode"><button data-action="mode" data-mode="automatic" class="${editor.mode==="automatic"?"selected":""}" aria-pressed="${editor.mode==="automatic"}">Automatic</button><button data-action="mode" data-mode="manual" class="${editor.mode==="manual"?"selected":""}" aria-pressed="${editor.mode==="manual"}">Manual</button></div>`:`<span class="pill">Manual entry</span>`}</div>
     <div class="card-body"><div class="route-strip"><div class="route-end"><small>SHIP FROM</small><strong id="route-from">${esc(editor.origin.building || "Select origin")}</strong><span>${esc(editor.origin.department || "Origin department")}</span></div><div class="route-track">${icon("truck")}</div><div class="route-end"><small>SHIP TO</small><strong id="route-to">${esc(editor.destination.building || (editor.mode==="automatic"?"Awaiting HUs":"Select destination"))}</strong><span>${esc(editor.destination.department || (editor.mode==="automatic"?"Filled from the active source":"Select a destination"))}</span></div></div>
@@ -304,7 +306,7 @@ function palletContents(forms) {
 
 function renderPallets() {
   const pallets = state.pallets.filter(p=>(filter==="all"||(filter==="finalised"?!p.collectedAt&&!reservedPalletIds().has(p.id)&&p.status===filter:filter==="collected"?Boolean(p.collectedAt):filter==="loading"?reservedPalletIds().has(p.id):p.status===filter))&&matches({...p,forms:palletForms(p.id)})).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
-  return heading("Consolidation workspace","Your pallets","Manage open consolidations and finalised pallets from one place.") + toolbar([["all","All pallets"],["open","Open"],["finalised","Ready for pick-up"],["loading","On a manifest"],["collected","Collected"]]) + `<div id="filter-results" class="pallet-grid">${pallets.length?pallets.map(p=>palletCard(p,"pallet-detail")).join(""):`<div class="card empty">${icon("box")}<strong>No pallets found</strong><p>Create an order or adjust the filters.</p></div>`}</div>`;
+  return heading("Consolidation workspace","Your pallets","Manage open consolidations and finalised pallets from one place.") + toolbar([["all","All pallets"],["open","Open"],["finalised","Ready for pick-up"],["loading","On a manifest"],["collected","Collected"]]) + renderIncomingOrders() + `<div id="filter-results" class="pallet-grid">${pallets.length?pallets.map(p=>palletCard(p,"pallet-detail")).join(""):`<div class="card empty">${icon("box")}<strong>No pallets found</strong><p>Create an order or adjust the filters.</p></div>`}</div>`;
 }
 
 function toolbar(filters) {
@@ -330,7 +332,7 @@ function renderSettings() {
 
 function render() {
   updateShell();
-  $("#main").innerHTML = ({create:renderCreate,fifo:renderFifo,infeed:renderInfeed,pallets:renderPallets,"open-orders":renderOpenOrders,history:renderHistory,settings:renderSettings,loads:renderLoads,docks:renderDocks}[view] || renderCreate)();
+  $("#main").innerHTML = ({create:renderCreate,fifo:renderFifo,infeed:renderInfeed,pallets:renderPallets,"open-orders":renderFifo,history:renderHistory,settings:renderSettings,loads:renderLoads,docks:renderDocks}[view] || renderCreate)();
   sessionStorage.setItem("transport-order.editor", JSON.stringify({editor,selectedPallet,dirty,editorBaseRevision,workspaceDay:state.workspaceDay}));
   if(deliveryOps())checkDockReminders();else $("#dock-alerts").innerHTML="";
 }
@@ -563,7 +565,7 @@ const actions = {
   async "save-slots"() { captureDocks();await mutate("settings",{dockSlots:dockDraft,manifestCopies:Number($("#manifest-copies").value)});dockDraft=null;render();toast("Dock slots saved. Reminders start 20 minutes before arrival."); },
 
   async "expand-source"(b) { expandedSource=expandedSource===b.dataset.kind?null:b.dataset.kind;render(); },
-  async navigate(b) { if(view==="infeed"&&b.dataset.view!==view){for(const kind of ["shipto","quantities"])await previewImport(kind,true);}view=b.dataset.view; filter="all"; search=""; if(view==="settings")await loadPrinters();if(view!=="docks")dockDraft=null;stopCamera();render(); },
+  async navigate(b) { if(view==="infeed"&&b.dataset.view!==view){for(const kind of ["shipto","quantities"])await previewImport(kind,true);}view=b.dataset.view==="open-orders"?"fifo":b.dataset.view;if(["pallets","create"].includes(view)&&cloudStatus.paired){try{await refreshIncoming();}catch{}} filter="all"; search=""; if(view==="settings")await loadPrinters();if(view!=="docks")dockDraft=null;stopCamera();render(); },
   async refresh() { await loadState();editorBaseRevision=state.revision; render(); toast("Saved data refreshed. Your current form is preserved."); },
   async mode(b) { if(editor.mode===b.dataset.mode)return; editor.mode=b.dataset.mode; resolveResult=null; editor.lines.forEach(l=>l.issues=[]); markDirty(); render(); if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async origin() { originExpanded=!originExpanded; render(); },
@@ -660,7 +662,7 @@ document.addEventListener("input",event=>{
   if(input.id==="loading-vehicle")vehicleDraft=input.value;
   if(input.id==="preset-search")$("#preset-results").innerHTML=renderPresets(input.dataset.building,input.value);
   if(input.id==="pallet-search") { const start=input.selectionStart;palletSearch=input.value;$("#pallet-panel").innerHTML=renderPalletPanel();$("#pallet-search").focus();$("#pallet-search").setSelectionRange(start,start); }
-  if(input.id==="record-search") { const start=input.selectionStart;search=input.value;const content=view==="pallets"?renderPallets():view==="open-orders"?renderOpenOrders():renderHistory();$("#main").innerHTML=content;$("#record-search").focus();$("#record-search").setSelectionRange(start,start); }
+  if(input.id==="record-search") { const start=input.selectionStart;search=input.value;const content=view==="pallets"?renderPallets():["fifo","open-orders"].includes(view)?renderFifo():renderHistory();$("#main").innerHTML=content;$("#record-search").focus();$("#record-search").setSelectionRange(start,start); }
 });
 
 document.addEventListener("change",async event=>{
@@ -763,7 +765,9 @@ const appReady=(async()=>{
     setInterval(async () => {
       if (busy || document.hidden) return;
       try {
-        const previousRevision=state.revision;await loadState(true);
+        const previousRevision=state.revision,previousIncoming=JSON.stringify(departmentOrders);await loadState(true);
+        if(previousIncoming!==JSON.stringify(departmentOrders)){if(view==="pallets")deferredBusinessRender=true;const badge=$("#incoming-order-count");if(badge){badge.textContent=departmentOrders.length;badge.hidden=!departmentOrders.length;}}
+        if(view==="fifo")deferredBusinessRender=true;
         if(state.revision!==previousRevision&&["pallets","loads","fifo"].includes(view))deferredBusinessRender=true;
         if(deferredBusinessRender&&["pallets","loads","fifo"].includes(view)&&!$("#dialog").open&&!["INPUT","SELECT","TEXTAREA"].includes(document.activeElement?.tagName)){render();deferredBusinessRender=false;}
         const count = $("#open-hu-count");
@@ -832,7 +836,7 @@ function openScanner(id) {
   renderScannerProgress();$("#scan-input")?.focus();
 }
 async function acceptScan(value) {
-  if(scanPurpose==="handoff")return previewHandoff(value);
+  if(scanPurpose==="handoff"){clearTimeout(scanSubmitTimer);return previewHandoff(value);}
   if(scanBusy)return;
   scanBusy=true;
   try {
@@ -895,18 +899,18 @@ function renderFifoBanner() {
   node.innerHTML=(fifoStatus.messages||[]).map(message=>`<div class="fifo-warning ${message.emergency?'emergency':''}">${icon("alert")}<p>${esc(message.text)}</p><button class="btn small" data-action="navigate" data-view="fifo">View FIFO</button></div>`).join("")+(syncError?`<div class="fifo-warning sync-warning">${icon("info")}<p>Online shipment status could not be refreshed. Saved records are kept. ${esc(syncError)}</p></div>`:"");
 }
 function renderFifo() {
-  const section=(title,rows,tone)=>`<section class="card fifo-section"><div class="card-head"><h2>${title}</h2><span class="pill ${tone}">${rows.length} ${rows.length===1?"HU":"HUs"}</span></div>${rows.length?`<div class="table-wrap"><table class="record-table"><thead><tr><th>DN / HU</th><th>Storage bin</th><th>Condition</th><th>SAP changed at</th><th>Age / threshold</th></tr></thead><tbody>${rows.map(row=>`<tr><td><b>${esc(row.dn||"No DN")}</b><small>${esc(row.hu)}</small></td><td>${esc(row.bin)}</td><td>${esc(row.condition)}${row.emergency?' · Emergency':''}</td><td>${esc(row.changedDisplay)}</td><td>${row.ageHours===null?'Timestamp needed':`${Math.floor(row.ageHours)}h ${Math.floor(row.ageHours%1*60)}m`}<small>${row.limitHours===0?'Process ASAP':`${row.limitHours} hour limit`}</small></td></tr>`).join("")}</tbody></table></div>`:'<div class="card-body">No deliveries in this category.</div>'}</section>`;
-  return heading("Material flow","FIFO tracker","Only PS_READY-INT is monitored. Emergency orders S4 / I2 are also monitored in INTER-IN.")+`<div class="banner">${icon("clock")}Age is based on SAP Changed On / Changed At in Europe/Amsterdam. Refresh the SAP import to keep the storage bin and timestamp current.</div>`+section("Action needed",fifoStatus.alerts||[],"removed")+section("Within time limit",fifoStatus.pending||[],"open")+section("Timestamp needs attention",fifoStatus.missing||[],"draft");
+  const section=(title,rows,tone)=>`<section class="card fifo-section"><div class="card-head"><h2>${title}</h2><span class="pill ${tone}">${rows.length} ${rows.length===1?"HU":"HUs"}</span></div>${rows.length?`<div class="table-wrap"><table class="record-table"><thead><tr><th>DN / HU</th><th>Ship-to</th><th>Storage bin</th><th>Condition</th><th>SAP changed at</th><th>Age / threshold</th></tr></thead><tbody>${rows.map(row=>`<tr><td><b>${esc(row.dn||"No DN")}</b><small>${esc(row.hu)}</small></td><td>${esc(row.shipTo)}</td><td>${esc(row.bin)}</td><td>${esc(row.condition)}${row.emergency?' · Emergency':''}</td><td>${esc(row.changedDisplay)}</td><td>${row.limitHours===null?'Not counted':row.ageHours===null?'Timestamp needed':`${Math.floor(row.ageHours)}h ${Math.floor(row.ageHours%1*60)}m`}<small>${row.limitHours===null?'Outside FIFO rules':row.limitHours===0?'Process ASAP':`${row.limitHours} hour limit`}</small></td></tr>`).join("")}</tbody></table></div>`:'<div class="card-body">No deliveries in this category.</div>'}</section>`;
+  return heading("Material flow","FIFO tracker","Open orders and FIFO in one view. Emergency orders S4 / I2 are also monitored in INTER-IN.")+`<div class="banner">${icon("clock")}Age is based on SAP Changed On / Changed At in Europe/Amsterdam. Refresh the SAP import to keep the storage bin and timestamp current.</div>`+fifoSearch()+section("Action needed",(fifoStatus.alerts||[]).filter(matches),"removed")+section("Within time limit",(fifoStatus.pending||[]).filter(matches),"open")+section("Not counted",(fifoStatus.notCounted||[]).filter(matches),"draft")+section("Timestamp needs attention",(fifoStatus.missing||[]).filter(matches),"draft");
 }
 function renderDepartmentHistory() {
  const forms=state.forms.filter(form=>form.sourceDepartment?.name===state.settings.departmentName&&!form.handoffSourceId).filter(matches).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
  return heading(esc(state.settings.departmentName),"Transport order history","Completed QR transport orders for handover to Delivery Operations.")+toolbar([["all","Transport orders"]])+`<section class="card table-wrap"><table class="record-table"><thead><tr><th>Transport order</th><th>Destination</th><th>DN / HU</th><th>Created</th><th></th></tr></thead><tbody>${forms.map(form=>`<tr><td><b>${esc(form.id)}</b><small>${form.handoffPublished?'Published for handover':'Publication needed before printing'}</small></td><td>${esc(form.destination.building)}<small>${esc(form.destination.department)}</small></td><td>${esc([...new Set(form.lines.map(l=>l.dn).filter(Boolean))].join(", "))}<small>${form.lines.filter(l=>l.hu).length} HUs</small></td><td>${formatDate(form.createdAt)}</td><td><button class="btn small" data-action="version" data-kind="form" data-id="${esc(form.id)}" data-revision="${form.revision}">View / print</button></td></tr>`).join("")||'<tr><td colspan="5">No department transport orders yet.</td></tr>'}</tbody></table></section>`;
 }
-let scanPurpose="loading", receivingCode="";
+let scanPurpose="loading", receivingCode="",scanSubmitTimer=null;
 actions["receive-order"]=()=>{
  if(!cloudStatus.paired){message("Sign in to receive orders","Use Settings → Online shipments to sign in and authorize this workstation first.");return;}
  receivingCode="";scanPurpose="handoff";
- showDialog("Receive department transport order",`<div class="dialog-body"><p>Scan the QR on the original transport order. Check its destination and contents, then choose how to receive the pallet.</p><div class="scanner-layout"><div><video id="scan-video" playsinline muted aria-label="Handover QR scanner"></video><div class="inline-actions mt"><button class="btn" data-action="start-camera">Start camera</button><button class="btn" data-action="stop-camera">Stop camera</button></div><label class="mt">Transport order QR / scanner input<input id="scan-input" autocomplete="off" placeholder="Scan the QR, then press Enter"></label><button class="btn wide mt" data-action="scan-input">Check transport order</button><div id="scan-feedback" class="banner mt" role="status">Ready to scan.</div></div><div id="handoff-preview"><div class="empty">${icon("scan")}<strong>Original transport order</strong><p>Its department, destination and material list will appear here.</p></div></div></div></div>`,`<button class="btn" data-action="close-dialog">Close</button>`,true);
+ showDialog("Receive department transport order",`<div class="dialog-body"><p>Scan the transport order QR with the connected scanner. Press Enter if your scanner does not send it automatically.</p><label>Transport order QR / scanner input<input id="scan-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Scan QR here" autofocus></label><button class="btn mt" data-action="scan-input">Check transport order</button><div id="scan-feedback" class="banner mt" role="status">Ready for the QR scanner.</div><div id="handoff-preview" class="mt"><div class="empty">${icon("scan")}<strong>Original transport order</strong><p>Its department, destination and material list will appear here.</p></div></div></div>`,`<button class="btn" data-action="close-dialog">Close</button>`,true);
  $("#scan-input").focus();
 };
 async function previewHandoff(value) {
@@ -917,7 +921,7 @@ async function previewHandoff(value) {
   const form=result.form;
   $("#handoff-preview").innerHTML=`<span class="eyebrow">FROM ${esc(form.sourceDepartment.name)}</span><h2>${esc(form.destination.building)}</h2><p>${esc(form.destination.department)} · ${esc(form.destination.shipTo)}</p><p><b>${esc(form.id)}</b> · ${esc(form.sourceDepartment.location)}</p><div class="table-wrap"><table class="record-table"><thead><tr><th>DN</th><th>HU</th><th>Qty</th></tr></thead><tbody>${form.lines.map(l=>`<tr><td>${esc(l.dn)}</td><td>${esc(l.hu)}</td><td>${esc(l.qty)}</td></tr>`).join("")}</tbody></table></div>${form.remarks?`<div class="banner mt">${esc(form.remarks)}</div>`:""}${result.receivedAt?`<div class="banner warn">Already received on ${esc(result.palletId)} at ${formatDate(result.receivedAt)}.</div>`:`<div class="handoff-options mt"><button class="btn" data-action="receive-handoff" data-mode="open">Receive as Open Pallet</button><button class="btn primary" data-action="receive-handoff" data-mode="finalised">Receive as Finalised Pallet</button><p class="field-hint">Open: add more forms before finalising. Finalised: print its pallet QR and make it available for a manifest.</p></div>`}`;
   scannerFeedback(result.receivedAt?"This order has already been received.":"Order found. Check its contents and select a receiving option.");
- }catch(error){scannerFeedback(error.message,true);}finally{scanBusy=false;}
+ }catch(error){scannerFeedback(error.message,true);}finally{scanBusy=false;$("#scan-input")?.focus();$("#scan-input")?.select();}
 }
 actions["receive-handoff"]=async button=>{
  if(busy||!receivingCode)return;
@@ -925,10 +929,25 @@ actions["receive-handoff"]=async button=>{
  try {
   const canAdvance=editorBaseRevision===null||editorBaseRevision>=(state.lastEditRevision??state.revision);
   const result=await api("handoff-receive",{code:receivingCode,mode:button.dataset.mode});
-  await loadState();if(canAdvance)editorBaseRevision=state.revision;$("#dialog").close();view="pallets";filter=state.pallets.find(p=>p.id===result.palletId)?.status==="open"?"open":"finalised";search="";render();
+  await refreshIncoming().catch(()=>{});await loadState();if(canAdvance)editorBaseRevision=state.revision;$("#dialog").close();view="pallets";filter=state.pallets.find(p=>p.id===result.palletId)?.status==="open"?"open":"finalised";search="";render();
   toast(result.alreadyReceived?"This order is already received.":"Department order received. Online tracking is updated.");
   if(result.print)await submitPrint(result.print);
  }finally{busy=false;$$('[data-action="receive-handoff"]').forEach(b=>b.disabled=false);}
 };
 
+
+document.addEventListener("input",event=>{
+ if(event.target.id!=="scan-input"||scanPurpose!=="handoff")return;
+ clearTimeout(scanSubmitTimer);
+ const value=event.target.value.trim();
+ if(/(?:handoff=|to:handoff:)[a-f0-9]{64}$/i.test(value)||/^[a-f0-9]{64}$/i.test(value))scanSubmitTimer=setTimeout(()=>acceptScan(value),250);
+});
+function incomingBadge(){return `<span id="incoming-order-count" class="incoming-count" ${departmentOrders.length?'':'hidden'} aria-label="${departmentOrders.length} incoming transport orders">${departmentOrders.length}</span>`;}
+async function refreshIncoming(){const result=await api("incoming-orders",{});departmentOrders=result.orders;departmentOrdersError="";}
+function renderIncomingOrders(){
+ if(!deliveryOps())return "";
+ const orders=departmentOrders.filter(matches);
+ return `<section class="card incoming-orders"><div class="card-head"><div><h2>Incoming department orders <span class="pill">${departmentOrders.length}</span></h2><p>Awaiting receipt · scan the original QR before accepting a pallet.</p></div><button class="btn" data-action="receive-order">${icon("scan")}Receive transport order</button></div>${departmentOrdersError?`<div class="banner warn">${esc(departmentOrdersError)} Last known orders are shown.</div>`:""}<div class="card-body">${orders.map(form=>`<article class="incoming-order"><div><span class="pill draft">Awaiting receipt</span><h3>${esc(form.destination.building)} — ${esc(form.destination.shipTo)}</h3><p>From ${esc(form.sourceDepartment.name)} · ${esc(form.sourceDepartment.location)}</p><p>${esc(form.id)} · ${formatDate(form.createdAt)}</p></div><div>${palletContents([form])}</div></article>`).join("")||"<p>No matching incoming department orders.</p>"}</div></section>`;
+}
+function fifoSearch(){return `<div class="view-toolbar"><strong>Open orders & FIFO</strong><label class="search-box">${icon("search")}<input id="record-search" aria-label="Search open orders" placeholder="Search DN, HU, bin or ship-to…" value="${esc(search)}"></label></div>`;}
 appReady;

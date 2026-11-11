@@ -77,6 +77,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send(200, {"state": state, "locations": LOCATIONS,
                     "fifoStatus": fifo_status(state) if state['settings'].get('departmentMode', 'delivery_ops') == 'delivery_ops' else {},
                     "syncError": self.server.sync_error,
+                    "departmentOrders": self.server.department_orders if state['settings'].get('departmentMode', 'delivery_ops') == 'delivery_ops' else [],
+                    "departmentOrdersError": self.server.department_orders_error,
                     "diagnostics": source_diagnostics(state), "version": __version__,
                     "spotfireStatus": self.server.spotfire.snapshot(),
                     "archiveStatus": {"paired": bool(self.server.cloud.device_token), "pending": len(list((self.store.directory / "archive" / "outbox").glob("*.json"))), "error": self.server.archive_error},
@@ -157,10 +159,17 @@ class Handler(BaseHTTPRequestHandler):
                 result = self.server.cloud.publish(self.store, payload.get("id"))
             elif path == "/api/cloud-refresh":
                 result = self.server.cloud.refresh(self.store, payload.get("id"))
+            elif path == "/api/incoming-orders":
+                self.server.department_orders = self.server.cloud.department_orders()
+                self.server.department_orders_error = ''
+                result = {'orders': self.server.department_orders}
             elif path in ("/api/handoff-preview", "/api/handoff-receive"):
                 if self.store.snapshot()['settings'].get('departmentMode', 'delivery_ops') != 'delivery_ops':
                     raise InputError('Receiving transport orders is available to Delivery Operations.')
                 result = self.server.cloud.handoff_preview(payload.get('code', '')) if path.endswith('preview') else self.server.cloud.receive_department(self.store, payload.get('code', ''), payload.get('mode'))
+                if path.endswith('receive'):
+                    received_ids = {f['id'] for f in self.store.snapshot()['forms'] if f.get('handoffSourceId')}
+                    self.server.department_orders = [f for f in self.server.department_orders if f['id'] not in received_ids]
             elif path == "/api/action":
                 result = self.store.apply(payload.get("action"), payload.get("payload", {}), payload.get("expectedRevision"))
                 result["revision"] = self.store.snapshot()["revision"]
@@ -203,10 +212,18 @@ def create_server(store, token, port=0):
                 server.archive_error = str(exc) if isinstance(exc, InputError) else "Archive upload failed; documents remain queued locally."
     server.archive_error = ""
     server.sync_error = ""
+    server.department_orders = []
+    server.department_orders_error = ''
     server.archive_stop = threading.Event()
     def sync_shipments():
-        while not server.archive_stop.wait(15):
+        while not server.archive_stop.is_set():
             errors = []
+            if server.cloud.device_token and store.snapshot()['settings'].get('departmentMode', 'delivery_ops') == 'delivery_ops':
+                try:
+                    server.department_orders = server.cloud.department_orders()
+                    server.department_orders_error = ''
+                except Exception as exc:
+                    server.department_orders_error = str(exc) if isinstance(exc, InputError) else 'Incoming orders could not be refreshed. Last known orders are retained.'
             for load in store.snapshot()['loads']:
                 if not load.get('online') or load['status'] in ('delivered', 'cancelled'):
                     continue
@@ -215,6 +232,8 @@ def create_server(store, token, port=0):
                 except Exception as exc:
                     errors.append(str(exc) if isinstance(exc, InputError) else 'Online status is temporarily unavailable. Saved data is retained.')
             server.sync_error = errors[0] if errors else ''
+            if server.archive_stop.wait(15):
+                break
     close = server.server_close
     def close_with_archive():
         server.archive_stop.set()
