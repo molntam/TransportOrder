@@ -17,7 +17,7 @@ from transport_order.storage import Store
 
 def check():
     with tempfile.TemporaryDirectory() as folder, sync_playwright() as playwright:
-        executable = os.environ.get('SPOTFIRE_TEST_BROWSER')
+        executable = os.environ.get('SPOTFIRE_TEST_BROWSER') or os.environ.get('CHROMIUM_PATH')
         browser = playwright.chromium.launch(headless=True, **({'executable_path': executable} if executable else {}))
         try:
             page = browser.new_page(viewport={'width': 1440, 'height': 1000})

@@ -37,6 +37,15 @@ class Cloud:
             with urlopen(request, timeout=30) as response:
                 return json.load(response)
         except HTTPError as exc:
+            try:
+                message = str(json.load(exc).get('message', ''))
+            except (ValueError, AttributeError, OSError):
+                message = ''
+            if message.startswith(('Handover QR not found', 'This transport order has already been received',
+                                   'Department document revision is immutable', 'HU is already',
+                                   'Material rows need', 'Duplicate HU in department form',
+                                   'Choose Open Pallet or Finalised Pallet')):
+                raise InputError(message[:1000]) from None
             if exc.code in (401, 403):
                 raise InputError('Online access denied. Check your sign-in and workspace operator membership.') from None
             raise InputError('The online operation was rejected. Refresh online status before retrying; check that these pallets are not already reserved.') from None
