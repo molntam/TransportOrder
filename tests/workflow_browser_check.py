@@ -160,7 +160,7 @@ def main():
             assert page.locator('#scanner').evaluate('el=>el.getBoundingClientRect().width')<=390
             page.get_by_role('button',name='Scan next demo pallet',exact=True).click()
             expect(page.locator('#scan-count')).to_have_text('1')
-            page.get_by_role('button',name='Close scanner',exact=True).click()
+            page.locator('#scanner .modal-foot').get_by_role('button',name='Close scanner',exact=True).click()
             page.get_by_role('button',name='Confirm pickup · 1 pallets',exact=True).click()
             page.locator('input[name="driver"]').fill('Driver Browser')
             page.locator('input[name="vehicle"]').fill('TRUCK-TEST')
