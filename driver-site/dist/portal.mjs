@@ -110,6 +110,8 @@ export async function startPortal() {
   finally {working=false;const b=document.querySelector('#tracking-login button');if(b)b.disabled=false;}
  });
  app.addEventListener('click',async event=>{
+  const summary=event.target.closest('summary');
+  if(summary?.parentElement.matches('details[data-record]')){const details=summary.parentElement;navigate({document:details.open?'':details.dataset.record},true);return;}
   const button=event.target.closest('[data-portal]');if(!button || button.disabled || working)return;
   event.preventDefault();const action=button.dataset.portal;
   if(action==='forget-trip'){forgetTrip();render();return;}

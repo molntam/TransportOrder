@@ -93,7 +93,9 @@ def main():
             expect(page.locator('.tracking-milestones')).to_contain_text('Receiver Test')
             expect(page.locator('.portal-result h2')).to_have_text('Building 21')
             page.locator('summary').click()
+            expect(page.locator('.portal-table')).to_be_visible()
             expect(page.locator('.portal-table')).to_contain_text('DN-LOADED')
+            page.wait_for_url('**document=LOAD-DELIVERED')
             saved_url=page.url
             page.reload()
             expect(page.locator('.portal-table')).to_be_visible()
