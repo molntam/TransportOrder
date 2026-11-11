@@ -194,6 +194,13 @@ async function main() {
   await execute('actions["select-pallet"]({dataset:{id:state.pallets[0].id}})');
   assert.equal(execute('selectedPallet'),null);
   assert.equal(execute('editor.lines[0].hu'),"PRESERVE-HU");
+  execute('editor=newEditor(null);selectedPallet=null;editor.mode="manual";editor.destination={building:"Concurrent",department:"Test",shipTo:"TEST"};editor.lines=[{...emptyLine(),hu:"CONCURRENT-HU",qty:"1"}];markDirty()');
+  await execute('api("action",{action:"settings",payload:{preparedBy:"Other window"},expectedRevision:state.revision})');
+  await execute('loadState(true)');
+  await assert.rejects(()=>execute('saveForm("keep_open")'),/Another window/);
+  assert.equal(execute('editor.lines[0].hu'),"CONCURRENT-HU");
+  await execute('actions.refresh()');
+  await execute('saveForm("keep_open")');
   execute('state.settings.departmentMode="other";state.settings.departmentName="Stagnation";state.settings.departmentLocation="Building 58";editor=newEditor(null);selectedPallet=null;view="create";render()');
   assert.match(execute('renderCreate()'),/Print transport order form/);
   assert.doesNotMatch(execute('renderCreate()'),/data-intent="keep_open"|data-mode="automatic"|id="pallet-panel"/);

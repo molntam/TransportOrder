@@ -123,6 +123,7 @@ function sourceGrid(kind) {
 }
 
 function newEditor(palletId = selectedPallet) {
+  editorBaseRevision=state.revision;
   const pallet = state.pallets.find(p=>p.id===palletId && p.status==="open");
   const existing = pallet ? palletForms(pallet.id)[0] : null;
   return {id:null,palletId:pallet?.id || null,mode:deliveryOps()?"automatic":"manual",origin:structuredClone(deliveryOps()?(existing?.origin || state.settings.origin):departmentOrigin()),destination:structuredClone(pallet?.destination || emptyLocation()),preparedBy:state.settings.preparedBy,lines:Array.from({length:5},emptyLine),remarks:"",receiverPhone:"",receiverEmail:"",manualEmergency:false,specialPickup:false,automaticEmergency:false,overrideReason:"",destinationOverride:false};
@@ -137,7 +138,9 @@ async function api(path, payload, raw=false) {
   return raw ? response.text() : response.json();
 }
 
+let editorBaseRevision=null;
 let fifoStatus={};
+let deferredBusinessRender=false;
 let syncError="";
 function deliveryOps(){return state.settings.departmentMode!=="other";}
 function departmentOrigin(){return {building:state.settings.departmentLocation,department:state.settings.departmentName,shipTo:state.settings.departmentName};}
@@ -164,6 +167,7 @@ async function loadState(background=false) {
   cloudStatus=result.archiveStatus||{};fifoStatus=result.fifoStatus||{};syncError=result.syncError||"";
   spotfireStatus=result.spotfireStatus||{};
   state = result.state;
+  if(editor&&!dirty&&!editor.id)editorBaseRevision=state.revision;
   directory = result.locations; diagnostics = result.diagnostics; providers = result.providers;
   $("#app-version").textContent = "TransportOrder " + result.version;
   updateShell();
@@ -327,7 +331,7 @@ function renderSettings() {
 function render() {
   updateShell();
   $("#main").innerHTML = ({create:renderCreate,fifo:renderFifo,infeed:renderInfeed,pallets:renderPallets,"open-orders":renderOpenOrders,history:renderHistory,settings:renderSettings,loads:renderLoads,docks:renderDocks}[view] || renderCreate)();
-  sessionStorage.setItem("transport-order.editor", JSON.stringify({editor,selectedPallet,dirty,workspaceDay:state.workspaceDay}));
+  sessionStorage.setItem("transport-order.editor", JSON.stringify({editor,selectedPallet,dirty,editorBaseRevision,workspaceDay:state.workspaceDay}));
   if(deliveryOps())checkDockReminders();else $("#dock-alerts").innerHTML="";
 }
 
@@ -335,7 +339,7 @@ function markDirty() {
   dirty = true;
   if ($("#draft-status")) $("#draft-status").textContent = "Unsaved changes";
   if ($("#line-totals")) $("#line-totals").innerHTML = lineTotals();
-  sessionStorage.setItem("transport-order.editor", JSON.stringify({editor,selectedPallet,dirty,workspaceDay:state.workspaceDay}));
+  sessionStorage.setItem("transport-order.editor", JSON.stringify({editor,selectedPallet,dirty,editorBaseRevision,workspaceDay:state.workspaceDay}));
 }
 
 function toast(message) {
@@ -373,8 +377,10 @@ async function mutate(action, payload) {
   busy = true;
   $$('[data-action="save"], [data-action="apply-import"], [data-action="finalise-selected"]').forEach(b=>b.disabled=true);
   try {
-    const result = await api("action",{action,payload,expectedRevision:state.revision});
+    const canAdvance=editorBaseRevision===null||editorBaseRevision>=(state.lastEditRevision??state.revision);
+    const result = await api("action",{action,payload,expectedRevision:action==="save_form"&&editorBaseRevision!==null?editorBaseRevision:state.revision});
     await loadState();
+    if(action!=="save_form"&&canAdvance)editorBaseRevision=state.revision;
     return result;
   } finally { busy=false; $$('[data-action="save"], [data-action="apply-import"], [data-action="finalise-selected"]').forEach(b=>b.disabled=false); }
 }
@@ -421,6 +427,7 @@ async function reviewRemarks(forms) {
 async function saveForm(intent) {
   if(intent!=="draft"){if(editor.mode==="automatic")await resolveEditor();if(!await reviewRemarks([editor]))return;}
   const result = await mutate("save_form",{...editor,intent,palletId:selectedPallet});
+  editorBaseRevision=state.revision;
   resolveResult = null; dirty=false;
   selectedPallet = intent==="draft" ? result.palletId : null;
   if (intent==="draft") {
@@ -557,7 +564,7 @@ const actions = {
 
   async "expand-source"(b) { expandedSource=expandedSource===b.dataset.kind?null:b.dataset.kind;render(); },
   async navigate(b) { if(view==="infeed"&&b.dataset.view!==view){for(const kind of ["shipto","quantities"])await previewImport(kind,true);}view=b.dataset.view; filter="all"; search=""; if(view==="settings")await loadPrinters();if(view!=="docks")dockDraft=null;stopCamera();render(); },
-  async refresh() { await loadState(); render(); toast("Saved data refreshed. Your current form is preserved."); },
+  async refresh() { await loadState();editorBaseRevision=state.revision; render(); toast("Saved data refreshed. Your current form is preserved."); },
   async mode(b) { if(editor.mode===b.dataset.mode)return; editor.mode=b.dataset.mode; resolveResult=null; editor.lines.forEach(l=>l.issues=[]); markDirty(); render(); if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async origin() { originExpanded=!originExpanded; render(); },
   async receiver() { receiverExpanded=!receiverExpanded; render(); },
@@ -584,7 +591,7 @@ const actions = {
     view="create";$("#dialog").close();render();
   },
   async "finalise-selected"() { if(!selectedPallet)return; if(dirty&&editor.lines.some(l=>["hu","description","part","dn"].some(k=>l[k]))) { await saveForm("finalise"); return; } if(!await confirmAction("Finalise this pallet?","This closes the pallet and creates its consolidated document. It can be reopened from History for corrections.","Finalise pallet"))return; if(!await reviewRemarks(palletForms(selectedPallet)))return;const result=await mutate("finalise_pallet",{id:selectedPallet});selectedPallet=null;editor=newEditor();dirty=false;render();await submitPrint(result.print); },
-  async "edit-form"(b) { if(!await confirmDiscard())return; const f=state.forms.find(r=>r.id===b.dataset.id);const p=state.pallets.find(r=>r.id===f.palletId);if(p&&p.status!=="open")throw new Error("Reopen this pallet before editing its forms.");editor=structuredClone(f);delete editor.versions;editor.destinationOverride=Boolean(f.overridden||f.overrideReason);if(!editor.lines.length)editor.lines=[emptyLine()];selectedPallet=f.palletId;dirty=false;resolveResult=null;view="create";$("#dialog").close();render(); },
+  async "edit-form"(b) { if(!await confirmDiscard())return; const f=state.forms.find(r=>r.id===b.dataset.id);const p=state.pallets.find(r=>r.id===f.palletId);if(p&&p.status!=="open")throw new Error("Reopen this pallet before editing its forms.");editor=structuredClone(f);editorBaseRevision=state.revision;delete editor.versions;editor.destinationOverride=Boolean(f.overridden||f.overrideReason);if(!editor.lines.length)editor.lines=[emptyLine()];selectedPallet=f.palletId;dirty=false;resolveResult=null;view="create";$("#dialog").close();render(); },
   async presets(b) { const building=b.dataset.building;showDialog("Choose a destination",`<div class="dialog-body"><label class="search-box">${icon("search")}<input id="preset-search" data-building="${esc(building)}" placeholder="Search building, department or ship-to"></label><div class="dialog-routes" id="preset-results">${renderPresets(building)}</div></div>`); },
   async "choose-destination"(b) { const r=directory.toLocations[Number(b.dataset.index)];editor.destination={building:r.building,department:r.department,shipTo:r.shipTo};editor.destinationOverride=editor.mode==="automatic";if(r.shipTo==="KEYSIGHT"&&!editor.remarks.includes("KEYSIGHT Tech."))editor.remarks=[editor.remarks,"KEYSIGHT Tech."].filter(Boolean).join("\n");markDirty();$("#dialog").close();render();if(editor.mode==="automatic"&&editor.lines.some(l=>l.hu))await resolveEditor(); },
   async "choose-file"(b) { $("#file-"+b.dataset.kind).click(); },
@@ -745,7 +752,7 @@ const appReady=(async()=>{
     try {
       const cached=JSON.parse(sessionStorage.getItem("transport-order.editor"));
       if(cached?.workspaceDay===state.workspaceDay&&cached?.dirty&&cached.editor&&(!cached.editor.id||state.forms.some(f=>f.id===cached.editor.id&&!f.removedAt))) {
-        editor=cached.editor;selectedPallet=cached.selectedPallet;dirty=true;
+        editor=cached.editor;selectedPallet=cached.selectedPallet;dirty=true;editorBaseRevision=Number.isInteger(cached.editorBaseRevision)?cached.editorBaseRevision:state.revision;
         if(selectedPallet&&!state.pallets.some(p=>p.id===selectedPallet&&p.status==="open")){selectedPallet=null;editor.palletId=null;}
       }
     } catch {}
@@ -757,7 +764,8 @@ const appReady=(async()=>{
       if (busy || document.hidden) return;
       try {
         const previousRevision=state.revision;await loadState(true);
-        if(state.revision!==previousRevision&&["pallets","loads","fifo"].includes(view)&&!$("#dialog").open&&!$("#main").contains(document.activeElement))render();
+        if(state.revision!==previousRevision&&["pallets","loads","fifo"].includes(view))deferredBusinessRender=true;
+        if(deferredBusinessRender&&["pallets","loads","fifo"].includes(view)&&!$("#dialog").open&&!["INPUT","SELECT","TEXTAREA"].includes(document.activeElement?.tagName)){render();deferredBusinessRender=false;}
         const count = $("#open-hu-count");
         if (count) count.textContent = `${nfmt(unprocessedHuCount())} unprocessed HUs`;
         if (view === "open-orders" && !$("#dialog").open && !["INPUT","SELECT","TEXTAREA"].includes(document.activeElement?.tagName)) $("#main").innerHTML = renderOpenOrders();
@@ -915,8 +923,9 @@ actions["receive-handoff"]=async button=>{
  if(busy||!receivingCode)return;
  busy=true;$$('[data-action="receive-handoff"]').forEach(b=>b.disabled=true);
  try {
+  const canAdvance=editorBaseRevision===null||editorBaseRevision>=(state.lastEditRevision??state.revision);
   const result=await api("handoff-receive",{code:receivingCode,mode:button.dataset.mode});
-  await loadState();$("#dialog").close();view="pallets";filter=state.pallets.find(p=>p.id===result.palletId)?.status==="open"?"open":"finalised";search="";render();
+  await loadState();if(canAdvance)editorBaseRevision=state.revision;$("#dialog").close();view="pallets";filter=state.pallets.find(p=>p.id===result.palletId)?.status==="open"?"open":"finalised";search="";render();
   toast(result.alreadyReceived?"This order is already received.":"Department order received. Online tracking is updated.");
   if(result.print)await submitPrint(result.print);
  }finally{busy=false;$$('[data-action="receive-handoff"]').forEach(b=>b.disabled=false);}
