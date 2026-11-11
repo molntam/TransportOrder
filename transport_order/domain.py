@@ -21,6 +21,7 @@ for location in LOCATIONS["toLocations"]:
         location["department"] = "Key sight"
         location["label"] = "Weert 2 — Key sight"
 SPOTFIRE_AVAILABLE = False
+DEFAULT_DOCK_SLOTS = json.loads(Path(__file__).with_name("dock_slots.json").read_text(encoding="utf-8"))
 DEFAULT_ORIGIN = {"building": "Building 05", "department": "Delivery Ops", "shipTo": "B5L - Delivery Ops"}
 
 
@@ -38,13 +39,20 @@ def active_sources(state):
 def default_settings():
     return {"preparedBy": "", "origin": dict(DEFAULT_ORIGIN), "openCopies": 1,
             "departmentMode": "delivery_ops", "departmentName": "Delivery Operations", "departmentLocation": "Building 05",
-            "finalCopies": 2, "manifestCopies": 1, "dockSlots": [], "printer": "", "theme": "light",
+            "finalCopies": 2, "manifestCopies": 1, "dockSlots": copy.deepcopy(DEFAULT_DOCK_SLOTS), "dockScheduleVersion": 1, "printer": "", "theme": "light",
             "dataSource": "sap", "spotfireEnabled": False,
             "spotfireUrl": default_spotfire_url(), "spotfireBrowser": "msedge"}
 
 
 def migrate_settings(settings):
     result = {**default_settings(), **settings}
+    if not settings.get("dockScheduleVersion"):
+        slots = copy.deepcopy(result["dockSlots"])
+        def slot_key(slot):
+            return (" ".join(slot["building"].split()).casefold(), tuple(sorted(slot["days"])), slot["start"], slot["end"])
+        existing = {slot_key(slot) for slot in slots}
+        slots.extend(copy.deepcopy(slot) for slot in DEFAULT_DOCK_SLOTS if slot_key(slot) not in existing)
+        result.update(dockSlots=slots, dockScheduleVersion=1)
     if not SPOTFIRE_AVAILABLE:
         result.update(dataSource="sap", spotfireEnabled=False)
     result.pop("copies", None)
@@ -358,7 +366,7 @@ def apply_action(state, action, payload):
             "origin": clean_location(settings["origin"]), "openCopies": settings["openCopies"],
             "finalCopies": settings["finalCopies"], "printer": str(settings["printer"]).strip()[:300],
             "theme": settings["theme"], "manifestCopies": settings["manifestCopies"],
-            "dockSlots": validate_slots(settings["dockSlots"])}
+            "dockSlots": validate_slots(settings["dockSlots"]), "dockScheduleVersion": settings["dockScheduleVersion"]}
         event(state, "Settings updated", "settings")
         return {}
     if action == "save_form":

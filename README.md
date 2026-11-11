@@ -11,7 +11,20 @@ A local shipping workspace for preparing transport orders between warehouses in 
 - **FIFO tracker** monitors `PS_READY-INT`: S1/I1 after four hours, S2/I8 after two hours, S4/I2 immediately. S4/I2 also alert in `INTER-IN`. Age uses SAP **Changed On / Changed At**, interpreted in Europe/Amsterdam. Missing timestamps are listed for correction. Refresh SAP regularly; this is not an automatic SAP connection.
 - **Settings → Department workspace** defaults to Delivery Operations. Another department supplies its name and location and gets a manual **Print transport order form** workflow. Sign in under Online shipments before printing its QR document. Tracking starts at **At [department]**.
 - Delivery Operations uses **Create order → Receive transport order** to scan a department QR, check the original contents and receive an **Open Pallet** or **Finalised Pallet**. A finalised receipt prints the normal pallet QR for loading. The original department form remains an immutable revision; retries do not create another pallet.
-- All displayed operational times use Europe/Amsterdam and 24-hour time. Dock-slot inputs use `HH:MM`; exact schedules must be entered from the approved dock-slot list. No unconfirmed schedule is seeded.
+- All displayed operational times use Europe/Amsterdam and 24-hour time. Dock-slot inputs use `HH:MM`. Version 0.9.1 includes the approved Monday–Friday schedule below, including existing workspaces. Custom windows are retained; later edits or removals are preserved.
+
+### Weekday dock slots (Europe/Amsterdam)
+
+| Destination | Arrival windows, Monday–Friday |
+|---|---|
+| Weert 1A | 06:30–07:00; 11:30–12:00; 14:30–15:00 |
+| Weert 1B | 08:00–08:30; 15:00–15:30; 18:30–19:00; 20:00–20:30; 22:00–22:30 |
+| Weert 2 | 08:30–09:00; 12:00–12:30; 20:30–21:00 |
+| Building 21 | 09:00–09:30; 13:30–14:00; 22:30–23:00 |
+| Building 9 and Building 17 | 07:00–07:30; 12:30–13:00 |
+| Building 30 | 07:30–08:00; 14:00–14:30 |
+
+Building 9 and Building 17 use the same windows and retain separate building-specific reminders. No slots are assigned to other buildings. Reminders begin 20 minutes before each window when there is work to dispatch.
 
 The website remains on [GitHub Pages](https://molntam.github.io/TransportOrder/). Apply the new Supabase migration before deploying the new clients. Spotfire remains disabled and SharePoint is not used.
 
@@ -137,7 +150,7 @@ Data infeed presents Internals and Quantities side by side, with an Expand/Colla
 
 ## Changes in 0.5.0 — truck loading
 
-1. Configure actual weekday arrival windows in **Dock slots**. No schedules are assumed. Times use Europe/Amsterdam; an in-app reminder starts 20 minutes before the slot when that building has open or unassigned ready pallets. The app must stay running. Manifest copies default to one and can be changed here.
+1. Review or adjust the approved weekday arrival windows in **Dock slots**. Times use Europe/Amsterdam; an in-app reminder starts 20 minutes before the slot when that building has open or unassigned ready pallets. The app must stay running. Manifest copies default to one and can be changed here.
 2. In **Truck loading**, choose **Create manifest** for a building. It includes every unassigned finalised pallet for that building, including different ship-to departments, and excludes open/collected pallets. Pallets from different origins cannot be combined. The immutable manifest lists pallet/consolidation IDs and revisions, form IDs, ship-to, DNs, HUs and quantities. Preview and print the driver copy explicitly.
 3. Included pallets are reserved against other manifests and cannot be reopened. Cancel the manifest with a reason before correcting an uncollected pallet. A cancelled manifest is retained and its print marked superseded.
 4. Open **Continue loading**, or scan the manifest QR in the authenticated local workspace. Start the camera once and scan pallet QRs continuously. A USB scanner or QR text input also works. The bundled reader works offline; camera permission is requested only on Start camera.

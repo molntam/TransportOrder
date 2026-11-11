@@ -5,7 +5,7 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 
-from transport_order.domain import apply_action
+from transport_order.domain import apply_action, default_settings, migrate_settings
 from transport_order.integrations.sap import InputError
 from transport_order.loads import dock_reminders, ready_pallets, scan_identity, validate_slots
 from transport_order.printing import document_model, render_document
@@ -147,8 +147,47 @@ class LoadingTests(unittest.TestCase):
 
 
 class DockSlotTests(unittest.TestCase):
+    def test_approved_weekday_schedule_matches_the_supplied_table(self):
+        expected = {
+            'Weert 1A': [('06:30','07:00'),('11:30','12:00'),('14:30','15:00')],
+            'Weert 1B': [('08:00','08:30'),('15:00','15:30'),('18:30','19:00'),('20:00','20:30'),('22:00','22:30')],
+            'Weert 2': [('08:30','09:00'),('12:00','12:30'),('20:30','21:00')],
+            'Building 21': [('09:00','09:30'),('13:30','14:00'),('22:30','23:00')],
+            'Building 9': [('07:00','07:30'),('12:30','13:00')],
+            'Building 17': [('07:00','07:30'),('12:30','13:00')],
+            'Building 30': [('07:30','08:00'),('14:00','14:30')],
+        }
+        slots = validate_slots(default_settings()['dockSlots'])
+        self.assertEqual(len(slots), 20)
+        actual = {}
+        for slot in slots:
+            self.assertEqual(slot['days'], [0,1,2,3,4])
+            actual.setdefault(slot['building'], []).append((slot['start'],slot['end']))
+        self.assertEqual(actual, expected)
+
+    def test_existing_workspaces_receive_slots_once_and_keep_custom_windows(self):
+        custom = {'id':'CUSTOM','building':'Building 58','days':[0],'start':'10:00','end':'10:30'}
+        legacy = {'dockSlots':[custom]}
+        upgraded = migrate_settings(legacy)
+        self.assertIn(custom, upgraded['dockSlots'])
+        self.assertEqual(len(upgraded['dockSlots']), 21)
+        self.assertEqual(migrate_settings(upgraded), upgraded)
+        cleared = {**upgraded,'dockSlots':[]}
+        self.assertEqual(migrate_settings(cleared)['dockSlots'], [])
+        settings = migrate_settings({'dockSlots':[copy.deepcopy(default_settings()['dockSlots'][0])]})
+        self.assertEqual(len(settings['dockSlots']), 20)
+
+    def test_schedule_marker_survives_settings_saves_and_defaults_are_independent(self):
+        state = loaded_state()
+        apply_action(state, 'settings', {'dockSlots':[]})
+        self.assertEqual(migrate_settings(state['settings'])['dockSlots'], [])
+        settings = default_settings()
+        settings['dockSlots'][0]['days'].clear()
+        self.assertEqual(default_settings()['dockSlots'][0]['days'], [0,1,2,3,4])
+
     def test_twenty_minute_boundary_weekends_and_no_schedule(self):
         state = loaded_state()
+        state['settings']['dockSlots'] = []
         apply_action(state, 'save_form', form())
         self.assertEqual(dock_reminders(state, datetime(2026,11,2,8,40)), [])
         state['settings']['dockSlots'] = validate_slots([{'id':'B21','building':'Building 21','days':[0,1,2,3,4],'start':'09:00','end':'09:30'}])
