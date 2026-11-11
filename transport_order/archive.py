@@ -6,6 +6,15 @@ from pathlib import Path
 from .printing import render_document
 
 
+def public_snapshot(value):
+    if isinstance(value, list):
+        return [public_snapshot(item) for item in value]
+    if isinstance(value, dict):
+        return {key: public_snapshot(item) for key, item in value.items()
+                if key not in {"handoffToken", "handoffPublished", "driverToken", "url", "versions"}}
+    return value
+
+
 def local_day(value=None):
     moment = datetime.fromisoformat(value) if value else datetime.now(timezone.utc)
     if moment.tzinfo is None:
@@ -29,6 +38,7 @@ def archive_document(store, state, document):
     snapshot.update({'id': identifier, 'revision': revision})
     if record.get('online'):
         snapshot['online'] = copy.deepcopy(record['online'])
+    snapshot = public_snapshot(snapshot)
     folder = store.directory / 'archive' / 'documents'
     folder.mkdir(parents=True, exist_ok=True)
     stem = f'{kind}-{identifier}-r{revision}' + ('-online' if record.get('online') else '')

@@ -68,10 +68,11 @@ export function createDemo() {
       validatePickup(shipment,payload);
       shipment.status=c.scanned===c.planned?'collected':'partial';shipment.collectedAt=at;
       shipment.pallets.forEach(p=>{if(p.scannedAt)p.collectedAt=at;});
+      shipment.driver=payload.driver;shipment.vehicle=payload.vehicle;shipment.reason=payload.reason||'';shipment.leftBehindCount=c.planned-c.scanned;shipment.plannedCount=c.planned;shipment.pallets=shipment.pallets.filter(p=>p.collectedAt);
     } else if(action==='confirm_delivery'){
       if(!['collected','partial'].includes(shipment.status))throw new Error('Confirm pickup before delivery');
       if(payload.building!==shipment.building||!payload.receiver?.trim())throw new Error('Confirm the matching destination building and receiver name');
-      shipment.status='delivered';shipment.deliveredAt=at;shipment.pallets.forEach(p=>{if(p.collectedAt)p.deliveredAt=at;});
+      shipment.status='delivered';shipment.deliveredAt=at;shipment.receiver=payload.receiver.trim();shipment.pallets.forEach(p=>{if(p.collectedAt)p.deliveredAt=at;});
     }
     if(action!=='get'&&!shipment.duplicate)shipment.rowVersion++;
     return structuredClone(shipment);

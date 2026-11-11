@@ -1,5 +1,6 @@
 import copy
 import json
+import secrets
 from collections import defaultdict
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -36,6 +37,7 @@ def active_sources(state):
 
 def default_settings():
     return {"preparedBy": "", "origin": dict(DEFAULT_ORIGIN), "openCopies": 1,
+            "departmentMode": "delivery_ops", "departmentName": "Delivery Operations", "departmentLocation": "Building 05",
             "finalCopies": 2, "manifestCopies": 1, "dockSlots": [], "printer": "", "theme": "light",
             "dataSource": "sap", "spotfireEnabled": False,
             "spotfireUrl": default_spotfire_url(), "spotfireBrowser": "msedge"}
@@ -242,6 +244,10 @@ def normalize_form(state, payload, complete):
                     issues.append({"message": f"HU {line['hu']} is already used on this form or another active form."})
                 seen.add(line["hu"])
     if complete:
+        pending_hus = {hu for request in state.get("pendingHandoffs", {}).values() for hu in request.get("hus", [])}
+        blocked = sorted({line.get("hu") for line in lines if line.get("hu") in pending_hus})
+        if blocked:
+            issues.append({"message": "These HUs have a pending department handover. Finish receiving it first: " + ", ".join(blocked)})
         if not all(origin.values()) or not all(destination.values()):
             issues.append({"message": "Complete the From and To building, department and ship-to fields."})
         if not lines:
@@ -306,6 +312,9 @@ def finalise(state, pallet):
 
 def apply_action(state, action, payload):
     from .loads import apply_load_action, reserved_ids, validate_slots
+    delivery_ops = state["settings"].get("departmentMode", "delivery_ops") == "delivery_ops"
+    if not delivery_ops and action in {"import", "clear_source", "create_load", "scan_load", "unscan_load", "complete_load", "cancel_load", "finalise_pallet", "reopen_pallet", "set_dock_slots"}:
+        raise InputError("This workflow is available to Delivery Operations. Change department under Settings.")
     if action in {"create_load", "scan_load", "unscan_load", "complete_load", "cancel_load"}:
         return apply_load_action(state, action, payload)
     if action == "import":
@@ -327,6 +336,12 @@ def apply_action(state, action, payload):
         return {}
     if action == "settings":
         settings = migrate_settings({**state["settings"], **payload})
+        if settings["departmentMode"] not in ("delivery_ops", "other"):
+            raise InputError("Choose Delivery Operations or another department.")
+        settings["departmentName"] = str(settings["departmentName"]).strip()[:200]
+        settings["departmentLocation"] = str(settings["departmentLocation"]).strip()[:200]
+        if settings["departmentMode"] == "other" and not (settings["departmentName"] and settings["departmentLocation"]):
+            raise InputError("Enter your department name and location.")
         for key in ("openCopies", "finalCopies", "manifestCopies"):
             settings[key] = int(settings[key])
             if settings[key] not in range(1, 6):
@@ -338,6 +353,7 @@ def apply_action(state, action, payload):
         from .integrations.spotfire import report_url
         spotfire_url = report_url(settings["spotfireUrl"])
         state["settings"] = {"dataSource": settings["dataSource"], "spotfireEnabled": bool(settings["spotfireEnabled"]),
+            "departmentMode": settings["departmentMode"], "departmentName": settings["departmentName"], "departmentLocation": settings["departmentLocation"],
             "spotfireUrl": spotfire_url, "spotfireBrowser": settings["spotfireBrowser"], "preparedBy": str(settings["preparedBy"]).strip()[:200],
             "origin": clean_location(settings["origin"]), "openCopies": settings["openCopies"],
             "finalCopies": settings["finalCopies"], "printer": str(settings["printer"]).strip()[:300],
@@ -347,7 +363,15 @@ def apply_action(state, action, payload):
         return {}
     if action == "save_form":
         intent = payload.get("intent", "draft")
-        if intent not in ("draft", "keep_open", "finalise"):
+        if not delivery_ops and intent != "department_print":
+            raise InputError("Use Print transport order form for department handovers.")
+        if intent == "department_print":
+            if delivery_ops:
+                raise InputError("Use the pallet workflow in Delivery Operations.")
+            payload = copy.deepcopy(payload)
+            payload.update(mode="manual", palletId=None)
+            payload["origin"] = {"building": state["settings"]["departmentLocation"], "department": state["settings"]["departmentName"], "shipTo": state["settings"]["departmentName"]}
+        if intent not in ("draft", "keep_open", "finalise", "department_print"):
             raise InputError("Unknown form action.")
         old = find(state, "forms", payload["id"]) if payload.get("id") else None
         if old and old.get("removedAt"):
@@ -362,7 +386,7 @@ def apply_action(state, action, payload):
         pallet = find(state, "pallets", pallet_id) if pallet_id else None
         if pallet and pallet["status"] != "open":
             raise InputError("Select an open pallet.")
-        if intent != "draft" and not pallet:
+        if intent not in ("draft", "department_print") and not pallet:
             pallet = {"id": uid("P"), "status": "open", "revision": 0, "createdAt": now(),
                       "updatedAt": now(), "destination": form["destination"], "versions": []}
             state["pallets"].append(pallet)
@@ -376,6 +400,11 @@ def apply_action(state, action, payload):
                      "status": "draft" if intent == "draft" else "complete",
                      "revision": (old["revision"] if old else 0) + (intent != "draft"),
                      "versions": copy.deepcopy(old.get("versions", [])) if old else []})
+        if intent == "department_print":
+            if old:
+                raise InputError("A handover document is immutable. Create a new transport order for changes.")
+            form.update(sourceDepartment={"name": state["settings"]["departmentName"], "location": state["settings"]["departmentLocation"]},
+                        handoffToken=secrets.token_hex(32), handoffPublished=False)
         if intent != "draft":
             form["versions"].append({k: copy.deepcopy(v) for k, v in form.items() if k != "versions"})
         if old:
@@ -386,7 +415,7 @@ def apply_action(state, action, payload):
         result = {"formId": form["id"], "palletId": form["palletId"]}
         if intent == "finalise":
             result.update(finalise(state, pallet))
-        elif intent == "keep_open":
+        elif intent in ("keep_open", "department_print"):
             result["print"] = {"kind": "form", "id": form["id"], "revision": form["revision"]}
         return result
     if action == "finalise_pallet":

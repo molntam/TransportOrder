@@ -2,6 +2,14 @@
 
 This backend is the next layer for TransportOrder. The desktop app in v0.5 still saves locally. Creating these tables does not upload local workspaces, change printing or activate phone scanning. No SAP transaction rows are seeded.
 
+## 0.9.0 tracking and handovers
+
+Apply `20261111154223_shipment_traceability_departments.sql` once, after the existing migrations. It adds receiver-name persistence (including a backfill from recorded delivery events), workspace-scoped department orders, private hashed handover links and the paginated `transport_tracking_page` RPC. The original `transport_tracking` RPC remains available. Tracking suppresses lower documents before filtering/searching, and excludes left-behind material from collected manifests without changing historical printed snapshots.
+
+Device actions `publish_department_order`, `get_department_order` and `receive_department_order` require a valid paired workstation whose owner still has operator access. Handover tokens are 256-bit random values; only hashes are stored in the private link table. Anonymous driver links cannot claim department handovers. Public document/archive snapshots strip bearer URLs and handover tokens recursively. Receiving locks the workspace, validates quantities and HU conflicts, preserves the source document, and accepts an idempotency request ID to recover a lost response.
+
+Department selection changes the local workflow; it does not grant a new security role. Every signed-in account still needs explicit workspace membership. The desktop department receipt currently creates one new pallet per received form; operators can add further forms while that pallet is open. Existing printed manifest snapshots remain the original plan, while live tracking shows actual collection.
+
 ## Current project deployment
 
 The configured project was set up on 1 November 2026 through the Supabase SQL Editor using the reviewed migration in one transaction. Verification found 13 application tables with RLS, 28 destination presets and no operator accounts or shipment records. Live anonymous/non-member access checks passed and the security advisor reported no findings. Performance advice contained only unused-index information for the new empty tables; those indexes support the planned lookups and are retained.

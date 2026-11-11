@@ -41,6 +41,13 @@ jobs:
       - run: python -m pip install -r requirements-spotfire.txt
       - run: python -m playwright install --with-deps chromium
       - run: python tests/spotfire_browser_check.py
+      - run: python tests/workflow_browser_check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workflow-screenshots
+          path: test-results/workflow/
+          retention-days: 7
 
   database:
     runs-on: ubuntu-latest

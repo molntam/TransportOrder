@@ -22,10 +22,10 @@ assert.throws(()=>validatePickup(s,{driver:'Driver',vehicle:'TEST',reason:''}),/
 s=await demo('unscan',{palletId:'P-DEMO-01',reason:'Does not fit'});check(totals(s).scanned===0,'Unloading reverses progress');
 s=await demo('scan',{code:'TO:PALLET:P-DEMO-02:1'});
 s=await demo('confirm_pickup',validatePickup(s,{driver:' Demo driver ',vehicle:' TEST-01 ',reason:'No space'}));
-check(s.status==='partial'&&totals(s).collected===1&&filterPallets(s,'','remaining').length===19,'Partial pickup preserves uncollected items');
+check(s.status==='partial'&&totals(s).collected===1&&s.pallets.length===1&&s.leftBehindCount===19&&s.reason==='No space','Partial pickup excludes left-behind material and preserves its comment');
 await assert.rejects(()=>demo('scan',{code:'TO:PALLET:P-DEMO-03:1'}),/closed/);checks++;
 await assert.rejects(()=>demo('confirm_delivery',{building:'Building 17',receiver:'Receiver'}),/matching destination/);checks++;
-s=await demo('confirm_delivery',{building:'Building 21',receiver:'Receiver'});check(s.status==='delivered'&&totals(s).delivered===1,'Only collected pallets delivered');
+s=await demo('confirm_delivery',{building:'Building 21',receiver:'Receiver'});check(s.status==='delivered'&&totals(s).delivered===1&&s.receiver==='Receiver','Only collected pallets delivered, with receiver name');
 let called;const fakeFetch=async(url,options)=>{called={url,options};return {ok:true,json:async()=>s};};
 const client=createClient({url:'https://project.supabase.co',publishableKey:'sb_publishable_test'},token,fakeFetch);
 await client('scan',{code:'TO:PALLET:P-EXAMPLE:1'});
@@ -40,3 +40,13 @@ check(!friendlyError(new Error('Sensitive SQL internals')).includes('SQL'),'Unkn
 const full=createDemo();let all=await full();for(const p of all.pallets)all=await full('scan',{code:`TO:PALLET:${p.id}:1`});all=await full('confirm_pickup',{driver:'D',vehicle:'V',reason:''});
 check(all.status==='collected'&&totals(all).collected===20,'Full truck collection');
 console.log(`Driver site checks passed: ${checks} assertions covering tokens, request privacy, scans, search, partial/full pickup and delivery.`);
+
+const {route,routeSearch,materialLines,documentDestination,documentStats,buildings,stages}=await import('../driver-site/dist/portal-domain.mjs');
+check(buildings.length===10&&stages.length===4,'Requested building tabs and status categories');
+const view={query:'0000123',building:'building21',stage:'delivered',page:2,document:'LOAD-ABC'};
+assert.deepEqual(route(routeSearch(view)),view);checks++;
+check(route('?building=unknown&stage=bad&page=-2').building===''&&route('?page=NaN').page===0,'Malformed filters are safe');
+const record={kind:'load',snapshot:{building:'Building 21',pallets:[{id:'P-A',snapshot:{destination:{building:'Building 21',department:'Motion',shipTo:'NL15C'},forms:[{id:'TO-A',lines:[{dn:'0001',hu:'0002',qty:'3'}]}]}}]},events:[{detail:{hu:'SECRET'}}]};
+check(materialLines(record.snapshot).length===1&&documentStats(record).hus===1,'Only actual shipment contents are counted');
+check(documentDestination(record).building==='Building 21'&&documentDestination(record).departments==='Motion','Building leads document title');
+console.log('Tracking route and material content checks passed.');

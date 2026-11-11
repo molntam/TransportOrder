@@ -4,6 +4,7 @@ from html import escape
 
 from .domain import find
 from .qr import matrix, svg
+from .local_time import display_time
 from .integrations.sap import InputError
 
 
@@ -55,14 +56,15 @@ def document_model(state, kind, record_id, revision, base_url=""):
     dns = {line["dn"] for line in lines if line.get("dn")}
     return {"kind": kind, "id": record_id, "revision": revision,
             "title": "Transport order" if kind == "form" or len(dns) <= 1 else "Pallet consolidation",
-            "at": version.get("updatedAt", version.get("at", "")),
+            "at": display_time(version.get("updatedAt", version.get("at", ""))),
             "preparedBy": ", ".join(dict.fromkeys(f.get("preparedBy") or "Local user" for f in forms)),
             "origin": forms[0]["origin"], "destination": version["destination"],
             "status": ("Individual transport form · " if kind == "form" else "Finalised pallet · ") + f"{len(hus)} HUs · {len(dns)} deliveries",
             "columns": columns, "rows": [[str(line.get(c["key"], "")) for c in columns] for line in lines],
             "summary": [[dn, str(len(v["hus"])), format(v["qty"], "f")] for dn, v in sorted(summary.items())],
             "remarks": remarks.strip(), "contact": contact, "obsolete": obsolete, "qrPlaceholder": kind == "pallet",
-            "qr": matrix(f"TO:PALLET:{record_id}:{revision}") if kind == "pallet" else []}
+            "qr": matrix(f"TO:PALLET:{record_id}:{revision}") if kind == "pallet" else
+                matrix("https://molntam.github.io/TransportOrder/#handoff=" + record["handoffToken"]) if record.get("handoffToken") else []}
 
 
 def address(location):
@@ -103,7 +105,7 @@ footer { color: #485976; font-size: 9pt; border-top: 1px solid #aab5c9; padding-
 def render_document(state, kind, record_id, revision, copies=1, base_url=""):
     model = document_model(state, kind, record_id, revision, base_url)
     qr = svg(model["qr"]) if model.get("qr") else ""
-    header = f"<header><div><h1>{e(model['title'])}</h1><span>Delivery Operations · Netherlands</span></div><div class='meta'><b>{e(record_id)}</b><br>Revision {revision}<br>{e(model['at'])}<br>Prepared by {e(model['preparedBy'])}</div>{qr}</header>"
+    header = f"<header><div><h1>{e(model['title'])}</h1><span>{e(model['origin'].get('department'))} · Netherlands</span></div><div class='meta'><b>{e(record_id)}</b><br>Revision {revision}<br>{e(model['at'])}<br>Prepared by {e(model['preparedBy'])}</div>{qr}</header>"
     alert = "<div class='obsolete'>SUPERSEDED DOCUMENT — this record was changed, removed or reopened. Check the current revision before use.</div>" if model["obsolete"] else ""
     body = f"<div class='addresses'><div class='address'><span class='label'>From</span>{address(model['origin'])}</div><div class='address'><span class='label'>To</span>{address(model['destination'])}</div></div><div class='status'>{e(model['status'])}</div>"
     if model["summary"]:
@@ -134,7 +136,7 @@ def load_model(state, record_id, revision, base_url=""):
     elif base_url:
         code = base_url + '/#scan=' + code
     return {'kind': 'load', 'id': record_id, 'revision': revision, 'title': 'Loading manifest',
-            'at': version['createdAt'], 'preparedBy': version['preparedBy'] or 'Local user',
+            'at': display_time(version['createdAt']), 'preparedBy': version['preparedBy'] or 'Local user',
             'origin': forms[0]['origin'],
             'destination': {'building': version['building'], 'department': 'Truck loading',
                             'shipTo': ', '.join(dict.fromkeys(p['destination']['shipTo'] for p in pallets))},

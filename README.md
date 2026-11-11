@@ -4,6 +4,17 @@
 
 A local shipping workspace for preparing transport orders between warehouses in the Netherlands. The interface uses ASML-inspired blue, larger Segoe UI text, stronger contrast, and light/dark themes, with the form in the centre and open pallets on the right.
 
+## Changes in 0.9.0
+
+- The tracking website opens with global search and ten building tabs. Each building separates **In process**, **Ready for Pick-up**, **Collected** and **Delivered**. Building names lead the cards. The current search, category and expanded document survive reloads; sign-in remains saved until sign-out or session revocation.
+- Tracking shows actual collected contents after a partial pickup. The driver comment stays visible; uncollected pallets appear separately until assigned to another manifest. Delivery records show the receiver's name. The desktop checks online status every 15 seconds and makes released pallets available automatically.
+- **FIFO tracker** monitors `PS_READY-INT`: S1/I1 after four hours, S2/I8 after two hours, S4/I2 immediately. S4/I2 also alert in `INTER-IN`. Age uses SAP **Changed On / Changed At**, interpreted in Europe/Amsterdam. Missing timestamps are listed for correction. Refresh SAP regularly; this is not an automatic SAP connection.
+- **Settings → Department workspace** defaults to Delivery Operations. Another department supplies its name and location and gets a manual **Print transport order form** workflow. Sign in under Online shipments before printing its QR document. Tracking starts at **At [department]**.
+- Delivery Operations uses **Create order → Receive transport order** to scan a department QR, check the original contents and receive an **Open Pallet** or **Finalised Pallet**. A finalised receipt prints the normal pallet QR for loading. The original department form remains an immutable revision; retries do not create another pallet.
+- All displayed operational times use Europe/Amsterdam and 24-hour time. Dock-slot inputs use `HH:MM`; exact schedules must be entered from the approved dock-slot list. No unconfirmed schedule is seeded.
+
+The website remains on [GitHub Pages](https://molntam.github.io/TransportOrder/). Apply the new Supabase migration before deploying the new clients. Spotfire remains disabled and SharePoint is not used.
+
 ## Run
 
 Requires **Python 3.10 or later**. SAP paste/import runs without pip packages. For automatic Spotfire collection, run **`setup_spotfire.bat`** once to install the optional browser dependency; see [Spotfire setup](docs/SPOTFIRE.md). Node is not needed to run the app.
@@ -30,9 +41,9 @@ If the browser does not open automatically, use the full local link printed in t
 
 ## First test
 
-Spotfire is the primary source. Run the one-time setup, start the app and sign in in its report tab; **Data Table Monitor** is checked every minute. Weert 1A requires an explicit **Scrap / Normal** choice. [The Spotfire guide](docs/SPOTFIRE.md) covers report access, destination review and workstation acceptance checks.
+SAP paste/import is the active source while Spotfire is disabled.
 
-To test the SAP fallback:
+To test the SAP workflow:
 
 1. Open **Data infeed** and choose **Use SAP paste/import**.
 2. Click an input cell and press **Ctrl+V** to paste the **Ship-to** and **Quantities** SAP tables. Headers are prefilled for data-only pastes; a paste containing headers replaces the input grid. File import (`.xlsx`, `.csv`, `.tsv`, `.txt`) is still available.

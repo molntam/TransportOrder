@@ -52,7 +52,7 @@ async function main() {
     addEventListener() {},
     createElement() { return new Element(this, "temporary"); },
   };
-  for (const id of ["main","navigation","page-label","source-health","user-label","avatar","dialog","toast","refresh-button","help-icon","power-icon","app-version","theme-button"]) {
+  for (const id of ["main","navigation","page-label","source-health","user-label","avatar","dialog","toast","refresh-button","help-icon","power-icon","app-version","theme-button","fifo-alerts","dock-alerts"]) {
     document.elements.set(id, new Element(document,id));
   }
   const saved = new Map();
@@ -186,6 +186,20 @@ async function main() {
     execute(`view=${JSON.stringify(page)};render()`);
     assert.doesNotMatch(document.elements.get("main").innerHTML,/\bundefined\b/);
   }
+  execute('selectedPallet=null;editor=newEditor(null);editor.mode="manual";editor.destination=structuredClone(state.pallets[0].destination);editor.lines=[{...emptyLine(),hu:"PRESERVE-HU",dn:"PRESERVE-DN",qty:"1"}];dirty=true;confirmDiscard=()=>{throw Error("Discard must not be asked")}');
+  await execute('actions["select-pallet"]({dataset:{id:state.pallets[0].id}})');
+  assert.equal(execute('editor.lines[0].hu'),"PRESERVE-HU");
+  assert.equal(execute('selectedPallet'),execute('state.pallets[0].id'));
+  execute('selectedPallet=null;editor.palletId=null;editor.destination={building:"Wrong building",department:"Wrong",shipTo:"Wrong"}');
+  await execute('actions["select-pallet"]({dataset:{id:state.pallets[0].id}})');
+  assert.equal(execute('selectedPallet'),null);
+  assert.equal(execute('editor.lines[0].hu'),"PRESERVE-HU");
+  execute('state.settings.departmentMode="other";state.settings.departmentName="Stagnation";state.settings.departmentLocation="Building 58";editor=newEditor(null);selectedPallet=null;view="create";render()');
+  assert.match(execute('renderCreate()'),/Print transport order form/);
+  assert.doesNotMatch(execute('renderCreate()'),/data-intent="keep_open"|data-mode="automatic"|id="pallet-panel"/);
+  assert.doesNotMatch(document.elements.get("navigation").innerHTML,/data-view="infeed"|data-view="loads"|data-view="fifo"/);
+  assert.equal(execute('editor.mode'),"manual");
+  assert.equal(execute('editor.origin.department'),"Stagnation");
   const jsQR=require(path.join(root,"transport_order/web/jsQR.js"));
   const {spawnSync}=require("node:child_process");
   for(const payload of ["TO:PALLET:P-123456789ABC:1","http://127.0.0.1:8765/#scan=TO:LOAD:LOAD-123456789ABC:1"]) {

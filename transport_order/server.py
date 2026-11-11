@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlsplit
 from .cloud import Cloud
 from . import __version__
 from .domain import LOCATIONS, resolve, source_diagnostics
+from .fifo import fifo_status
 from .integrations import PROVIDERS
 from .integrations.sap import InputError, parse_table
 from .integrations.spotfire_browser import SpotfireBrowser
@@ -74,6 +75,8 @@ class Handler(BaseHTTPRequestHandler):
             state = self.store.snapshot()
             if path == "/api/state":
                 self.send(200, {"state": state, "locations": LOCATIONS,
+                    "fifoStatus": fifo_status(state) if state['settings'].get('departmentMode', 'delivery_ops') == 'delivery_ops' else {},
+                    "syncError": self.server.sync_error,
                     "diagnostics": source_diagnostics(state), "version": __version__,
                     "spotfireStatus": self.server.spotfire.snapshot(),
                     "archiveStatus": {"paired": bool(self.server.cloud.device_token), "pending": len(list((self.store.directory / "archive" / "outbox").glob("*.json"))), "error": self.server.archive_error},
@@ -154,10 +157,18 @@ class Handler(BaseHTTPRequestHandler):
                 result = self.server.cloud.publish(self.store, payload.get("id"))
             elif path == "/api/cloud-refresh":
                 result = self.server.cloud.refresh(self.store, payload.get("id"))
+            elif path in ("/api/handoff-preview", "/api/handoff-receive"):
+                if self.store.snapshot()['settings'].get('departmentMode', 'delivery_ops') != 'delivery_ops':
+                    raise InputError('Receiving transport orders is available to Delivery Operations.')
+                result = self.server.cloud.handoff_preview(payload.get('code', '')) if path.endswith('preview') else self.server.cloud.receive_department(self.store, payload.get('code', ''), payload.get('mode'))
             elif path == "/api/action":
                 result = self.store.apply(payload.get("action"), payload.get("payload", {}), payload.get("expectedRevision"))
                 result["revision"] = self.store.snapshot()["revision"]
             elif path == "/api/print-job":
+                if self.store.snapshot()['settings'].get('departmentMode', 'delivery_ops') != 'delivery_ops' and payload.get('kind') != 'form':
+                    raise InputError('Department workspaces print transport order forms only.')
+                if payload.get('kind') == 'form':
+                    self.server.cloud.publish_department(self.store, payload.get('id'))
                 result = self.server.print_service.submit(self.store, payload)
             elif path == "/api/shutdown":
                 self.send(200, {"ok": True})
@@ -191,7 +202,19 @@ def create_server(store, token, port=0):
             except Exception as exc:
                 server.archive_error = str(exc) if isinstance(exc, InputError) else "Archive upload failed; documents remain queued locally."
     server.archive_error = ""
+    server.sync_error = ""
     server.archive_stop = threading.Event()
+    def sync_shipments():
+        while not server.archive_stop.wait(15):
+            errors = []
+            for load in store.snapshot()['loads']:
+                if not load.get('online') or load['status'] in ('delivered', 'cancelled'):
+                    continue
+                try:
+                    server.cloud.refresh(store, load['id'])
+                except Exception as exc:
+                    errors.append(str(exc) if isinstance(exc, InputError) else 'Online status is temporarily unavailable. Saved data is retained.')
+            server.sync_error = errors[0] if errors else ''
     close = server.server_close
     def close_with_archive():
         server.archive_stop.set()
@@ -199,6 +222,7 @@ def create_server(store, token, port=0):
         close()
     server.server_close = close_with_archive
     threading.Thread(target=upload_archive, daemon=True).start()
+    threading.Thread(target=sync_shipments, daemon=True).start()
     return server
 
 
